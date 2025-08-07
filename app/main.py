@@ -15,9 +15,9 @@ async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.Stream
         if not chunk:
             break
         
-        if 'ping' in chunk.lower():
+        if 'ping' in chunk.decode().lower():
             await handle_ping()        
-            
+
 
 async def run_server() -> None:
     server = await asyncio.start_server(handle_connection, HOST, PORT)
