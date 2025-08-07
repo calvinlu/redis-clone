@@ -1,24 +1,31 @@
-import socket  # noqa: F401
+import asyncio
 
+HOST = 'localhost'
+
+PORT = 6379
 
 PONG = b'+PONG\r\n'
 
-def main():
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!")
+async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    data = None
+
+    while data != b'quit':
+        writer.write(b'')
+        await writer.drain()
+        chunk = await reader.read(1024)
+        if not chunk:
+            break
+        
+        writer.write(PONG)
+        await writer.drain()
+
     
-    server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
-    client_conn, _ = server_socket.accept() # wait for client
-
-    while True: 
-        request: bytes = client_conn.recv(512)
-        data: str = request.decode()
-
-        if 'ping' in data.lower():
-            client_conn.sendall(PONG)
-
-    
+async def run_server() -> None:
+    server = await asyncio.start_server(handle_connection, HOST, PORT)
+    async with server:
+        await server.serve_forever()
 
 
 if __name__ == "__main__":
-    main()
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(run_server())
