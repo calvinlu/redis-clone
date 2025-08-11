@@ -50,7 +50,7 @@ async def test_parse_ping():
     # Verify the result
     assert isinstance(result, list)  # Should be a list
     assert len(result) == 1         # Should have one element
-    assert result[0] == b'PING'     # Should be 'PING' in bytes
+    assert result[0] == b'PING'     # Should be 'PING' in bytes (without RESP formatting)
 
 
 @pytest.mark.asyncio

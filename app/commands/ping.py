@@ -1,6 +1,6 @@
 COMMAND = 'ping'
 
-RESPONSE = b'+PONG\r\n'
 
-async def handle_command() -> bytes:
-    return RESPONSE
+async def handle_command() -> str:
+    """Handle PING command by returning 'PONG'."""
+    return 'PONG'

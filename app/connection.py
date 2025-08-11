@@ -1,34 +1,52 @@
 import asyncio
 from app.commands import ping, echo
-from app.parser.parser import RESP2Parser
+from app.parser.parser import RESP2Parser, encode
 
 async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     parser = RESP2Parser(reader)
-    data = None
+    addr = writer.get_extra_info('peername')
+    print(f"New connection from {addr}")
 
-    while data != b'quit':
-        writer.write(b'')
-        await writer.drain()
-        
-        message: parser.RESPValue =  await parser.parse()
-
-        match message:
-            case ping.COMMAND:
-                writer.write(await ping.handle_command())
-            case echo.COMMAND:
-                echo_sound = message[1]
-                writer.write(await echo.handle_command(echo_sound))
-            
-        await writer.drain()
-
-        chunk = await reader.read(1024)
-        print(f'chunk: {chunk}')
-        print(f'chunk.decode(): {chunk.decode()}')
-        print(f'chunk.decode().lower(): {chunk.decode().lower()}')
-
-        if not chunk:
-            break
-        
-        if 'ping' in chunk.decode().lower():
-           writer.write(await ping.handle_command())
-           await writer.drain()
+    try:
+        while True:
+            try:
+                # Parse the incoming message
+                message = await parser.parse()
+                print(f"Received message: {message}")
+                
+                if not message:
+                    break
+                    
+                # Convert command to bytes for comparison
+                command = message[0].upper() if isinstance(message, list) and len(message) > 0 else b''
+                
+                # Process the command
+                response = None
+                if command == b'PING':
+                    response = await ping.handle_command()
+                elif command == b'ECHO' and len(message) > 1:
+                    response = await echo.handle_command(message[1])
+                else:
+                    response = b"-ERR unknown command"
+                
+                # Send the response if we have one
+                if response is not None:
+                    writer.write(response + b'\r\n')
+                    await writer.drain()
+                
+            except asyncio.IncompleteReadError:
+                print("Client disconnected")
+                break
+            except ConnectionResetError:
+                print("Connection reset by peer")
+                break
+            except Exception as e:
+                print(f"Error handling connection: {e}")
+                writer.write(b"-ERR internal error\r\n")
+                await writer.drain()
+                break
+                
+    finally:
+        print(f"Closing connection from {addr}")
+        writer.close()
+        await writer.wait_closed()
