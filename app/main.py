@@ -1,22 +1,8 @@
 import asyncio
+from app.connection import handle_connection
 
 HOST = 'localhost'
-
 PORT = 6379
-
-async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    data = None
-
-    while data != b'quit':
-        writer.write(b'')
-        await writer.drain()
-        
-        chunk = await reader.read(1024)
-        if not chunk:
-            break
-        
-        if 'ping' in chunk.decode().lower():
-            await handle_ping()        
 
 
 async def run_server() -> None:
