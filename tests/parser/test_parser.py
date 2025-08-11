@@ -52,6 +52,28 @@ async def test_parse_ping():
     assert len(result) == 1         # Should have one element
     assert result[0] == b'PING'     # Should be 'PING' in bytes
 
+
+@pytest.mark.asyncio
+async def test_parse_echo():
+    # ECHO command in RESP2 format: *2\r\n$4\r\nECHO\r\n$5\r\nhello\r\n
+    # Create mock data for ECHO command
+    data = b'*2\r\n$4\r\nECHO\r\n$5\r\nhello\r\n'
+    # Create mock reader with our test data
+    reader = MockReader(data)
+    
+    # Import the parser
+    from app.parser.parser import RESP2Parser
+    
+    # Create parser and parse the command
+    parser = RESP2Parser(reader)
+    result = await parser.parse()
+    
+    # Verify the result
+    assert isinstance(result, list)  # Should be a list
+    assert len(result) == 2         # Should have two elements
+    assert result[0] == b'ECHO'     # First element should be 'ECHO' in bytes
+    assert result[1] == b'hello'    # Second element should be the message 'hello' in bytes
+
 if __name__ == "__main__":
     # This allows running the test directly: python -m tests.test_parser
     import sys
