@@ -5,12 +5,22 @@ parse commands, and dispatch them to appropriate command handlers.
 """
 
 import asyncio
+from typing import Any, Dict, Optional, Type, cast
 
-from app.commands import echo, ping
-from app.commands import set as set_command
+from app.commands.base_command import Command
+from app.commands.echo_command import EchoCommand
+from app.commands.ping_command import PingCommand
+from app.commands.set_command import SetCommand
 from app.parser.parser import RESP2Parser
 from app.resp2 import format_error, format_response
 from app.store.store import Store
+
+# Command registry mapping command names to their handler instances
+COMMAND_REGISTRY: Dict[bytes, Command] = {
+    b"PING": PingCommand(),
+    b"ECHO": EchoCommand(),
+    b"SET": SetCommand(),
+}
 
 
 async def handle_connection(
@@ -48,30 +58,28 @@ async def handle_connection(
 
                 # Process the command
                 response = None
-                if command == b"PING":
-                    response = await ping.handle_command()
-                elif command == b"ECHO" and len(message) > 1:
-                    # Convert message[1] to string if it's bytes
-                    message_text = (
-                        message[1].decode("utf-8")
-                        if isinstance(message[1], bytes)
-                        else message[1]
-                    )
-                    response = await echo.handle_command(message_text)
-                elif command == b"SET" and len(message) > 2:
-                    # Create store instance
-                    store = Store()
-                    key = (
-                        message[1].decode("utf-8")
-                        if isinstance(message[1], bytes)
-                        else message[1]
-                    )
-                    value = (
-                        message[2].decode("utf-8")
-                        if isinstance(message[2], bytes)
-                        else message[2]
-                    )
-                    response = await set_command.handle_command(key, value, store)
+                command_handler = COMMAND_REGISTRY.get(command)
+
+                if command_handler:
+                    try:
+                        # Convert message arguments to strings if they are bytes
+                        args = [
+                            arg.decode("utf-8") if isinstance(arg, bytes) else arg
+                            for arg in message[1:]
+                        ]
+
+                        # Special case for commands that need the store
+                        if command == b"SET":
+                            store = Store()
+                            response = await command_handler.execute(*args, store=store)
+                        else:
+                            response = await command_handler.execute(*args)
+
+                    except ValueError as e:
+                        response = format_error(str(e))
+                    except Exception as e:  # pylint: disable=broad-except
+                        print(f"Error executing command {command}: {e}")
+                        response = format_error(f"ERR {str(e)}")
                 else:
                     response = format_error("unknown command")
 
