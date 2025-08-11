@@ -14,7 +14,7 @@ def store():
 def test_set_and_get_key(store):
     """Test that setting a key-value pair and then retrieving it returns the correct value."""
     store.set_key("name", "Alice")
-    assert store.get_key("Alice") == "Alice"
+    assert store.get_key("name") == "Alice"
 
 
 def test_get_nonexistent_key(store):
