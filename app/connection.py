@@ -31,7 +31,7 @@ async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.Stream
                 
                 # Send the response if we have one
                 if response is not None:
-                    writer.write(response + b'\r\n')
+                    writer.write(b"+" + response + b'\r\n')
                     await writer.drain()
                 
             except asyncio.IncompleteReadError:
