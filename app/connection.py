@@ -9,6 +9,7 @@ from typing import Dict
 
 from app.commands.base_command import Command
 from app.commands.echo_command import EchoCommand
+from app.commands.get_command import GetCommand
 from app.commands.ping_command import PingCommand
 from app.commands.set_command import SetCommand
 from app.parser.parser import RESP2Parser
@@ -20,11 +21,12 @@ COMMAND_REGISTRY: Dict[bytes, Command] = {
     b"PING": PingCommand(),
     b"ECHO": EchoCommand(),
     b"SET": SetCommand(),
+    b"GET": GetCommand(),
 }
 
 
 async def handle_connection(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, store: Store
 ) -> None:
     """Handle a new client connection.
 
@@ -70,7 +72,8 @@ async def handle_connection(
 
                         # Special case for commands that need the store
                         if command == b"SET":
-                            store = Store()
+                            response = await command_handler.execute(*args, store=store)
+                        elif command == b"GET":
                             response = await command_handler.execute(*args, store=store)
                         else:
                             response = await command_handler.execute(*args)

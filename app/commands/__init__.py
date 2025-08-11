@@ -10,6 +10,11 @@ Modules:
     - set: Implements the SET command
 """
 
-from app.commands import echo_command, ping_command, set_command  # noqa: F401
+from app.commands import (  # noqa: F401
+    echo_command,
+    get_command,
+    ping_command,
+    set_command,
+)
 
-__all__ = ["echo_command", "ping_command", "set_command"]
+__all__ = ["echo_command", "ping_command", "set_command", "get_command"]
