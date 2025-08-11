@@ -5,7 +5,7 @@ parse commands, and dispatch them to appropriate command handlers.
 """
 
 import asyncio
-from typing import Any, Dict, Optional, Type, cast
+from typing import Dict
 
 from app.commands.base_command import Command
 from app.commands.echo_command import EchoCommand
