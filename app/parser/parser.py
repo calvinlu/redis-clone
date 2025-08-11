@@ -134,8 +134,8 @@ class RESP2Parser:
         length_line = await self.read_line()
         try:
             length = int(length_line)
-        except ValueError:
-            raise ValueError(f"Invalid bulk string length: {length_line}")
+        except ValueError as e:
+            raise ValueError(f"Invalid bulk string length: {length_line}") from e
         if length == -1:  # Null bulk string
             return None
         data = await self.reader.readexactly(length)
@@ -156,8 +156,8 @@ class RESP2Parser:
         length_line = await self.read_line()
         try:
             length = int(length_line)
-        except ValueError:
-            raise ValueError(f"Invalid array length: {length_line}")
+        except ValueError as e:
+            raise ValueError(f"Invalid array length: {length_line}") from e
         if length == -1:  # Null array
             return []
         return [await self.parse() for _ in range(length)]
