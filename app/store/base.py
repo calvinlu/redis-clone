@@ -16,7 +16,6 @@ class BaseStore(ABC):
         Returns:
             str: The type name (e.g., 'string', 'list')
         """
-        pass
 
     @abstractmethod
     def delete(self, key: str) -> bool:
@@ -28,4 +27,3 @@ class BaseStore(ABC):
         Returns:
             bool: True if the key existed and was deleted, False otherwise
         """
-        pass
