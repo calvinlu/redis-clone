@@ -57,7 +57,6 @@ async def _execute_command(
         result = await dispatcher.execute(command, *args)
         # Return the result as-is to allow for proper RESP2 formatting
         # None will be formatted as null bulk string ($-1\r\n)
-
         return result
     except ValueError as e:
         return format_error(str(e))

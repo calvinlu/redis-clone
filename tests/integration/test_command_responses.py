@@ -170,10 +170,9 @@ class TestCommandResponses:
         assert b"wrong number of arguments" in response
 
 
-# This allows running the tests with: python -m pytest tests/integration/test_command_responses.py -v
+# This allows running the tests with:
+# python -m pytest tests/integration/test_command_responses.py -v
 if __name__ == "__main__":
     import sys
-
-    import pytest
 
     sys.exit(pytest.main(["-v", __file__]))
