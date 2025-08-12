@@ -12,6 +12,7 @@ from app.commands import (
     echo_command,
     get_command,
     ping_command,
+    rpush_command,
     set_command,
 )
 from app.parser.parser import RESP2Parser
@@ -35,6 +36,7 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
     dispatcher.register(echo_command.command)
     dispatcher.register(set_command.command)
     dispatcher.register(get_command.command)
+    dispatcher.register(rpush_command.command)
 
     return dispatcher
 

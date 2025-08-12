@@ -14,6 +14,7 @@ from app.commands import (  # noqa: F401
     echo_command,
     get_command,
     ping_command,
+    rpush_command,
     set_command,
 )
 from app.commands.base_command import Command  # noqa: F401
