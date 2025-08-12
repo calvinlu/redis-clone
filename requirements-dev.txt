@@ -5,6 +5,9 @@
 # Install the package in development mode
 -e .
 
+# Async Redis client
+aioredis>=2.0.0
+
 # Code quality
 black>=22.0.0
 flake8>=4.0.0

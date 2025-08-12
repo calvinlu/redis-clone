@@ -1,49 +1,22 @@
-"""Base class for end-to-end tests."""
+"""Base class for end-to-end tests using redis-py client."""
 import os
-import socket
 import subprocess
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
+from redis.asyncio import Redis
 
 # Get the server port from environment or use default
 TEST_PORT = int(os.environ.get("TEST_PORT", "6379"))
 SERVER_HOST = os.environ.get("SERVER_HOST", "localhost")
 
 
-class RedisTestClient:
-    """A simple Redis client using raw sockets for testing."""
-
-    def __init__(self, host: str = SERVER_HOST, port: int = TEST_PORT):
-        self.host = host
-        self.port = port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.host, self.port))
-
-    def send_command(self, *args: str) -> str:
-        """Send a command to the Redis server using RESP protocol."""
-        command = f"*{len(args)}\r\n"
-        for arg in args:
-            command += f"${len(str(arg).encode('utf-8'))}\r\n{arg}\r\n"
-        self.socket.sendall(command.encode("utf-8"))
-        return self._read_response()
-
-    def _read_response(self) -> str:
-        """Read and parse the server response."""
-        response = self.socket.recv(1024).decode("utf-8")
-        return response.strip()
-
-    def close(self):
-        """Close the connection."""
-        self.socket.close()
-
-
 class BaseE2ETest:
     """Base class for end-to-end tests that need a running Redis server."""
 
     _server_process: Optional[subprocess.Popen] = None
-    _test_client: Optional[RedisTestClient] = None
+    _test_client: Optional[Redis] = None
 
     @classmethod
     def setup_class(cls):
@@ -62,6 +35,8 @@ class BaseE2ETest:
     @classmethod
     def teardown_class(cls):
         """Stop the test server after all tests in this class run."""
+        if cls._test_client:
+            cls._test_client.close()
         if cls._server_process:
             cls._server_process.terminate()
             try:
@@ -69,17 +44,24 @@ class BaseE2ETest:
             except subprocess.TimeoutExpired:
                 cls._server_process.kill()
 
-    @pytest.fixture
-    def test_client(self) -> RedisTestClient:
-        """Return a test client connected to the server."""
-        if self._test_client is None:
-            self._test_client = RedisTestClient(SERVER_HOST, TEST_PORT)
-        return self._test_client
+    @pytest.fixture(autouse=True)
+    async def setup_client(self):
+        """Set up a fresh Redis client for each test."""
+        self._test_client = Redis(
+            host=SERVER_HOST, port=TEST_PORT, decode_responses=True
+        )
+        yield
+        # Clean up
+        await self._test_client.aclose()
+        await self._test_client.connection_pool.disconnect()
 
-    def execute_command(self, *args: str) -> str:
-        """Execute a Redis command and return the raw response."""
+    async def execute_command(self, *args: str) -> Any:
+        """Execute a Redis command and return the response."""
         if not args:
             raise ValueError("No command specified")
         if self._test_client is None:
             raise RuntimeError("Test client not initialized")
-        return self._test_client.send_command(*args)
+
+        # Convert all arguments to strings as expected by the RESP protocol
+        str_args = [str(arg) for arg in args]
+        return await self._test_client.execute_command(*str_args)
