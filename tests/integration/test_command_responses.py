@@ -73,21 +73,41 @@ class TestCommandResponses:
             command += f"${len(arg)}\r\n{arg}\r\n"
         return command
 
-    async def send_command(self, reader, writer, *args):
+    async def send_command(self, reader, writer, *args, timeout=1.0):
         """Helper to send a command and return the raw response.
 
         Args:
             reader: The StreamReader to read the response from
             writer: The StreamWriter to write the command to
             *args: Command and its arguments (e.g., 'SET', 'key', 'value')
+            timeout: Maximum time to wait for a response in seconds
 
         Returns:
             The raw response from the server
+
+        Raises:
+            asyncio.TimeoutError: If the server doesn't respond within the timeout
         """
         command = self.format_command(*args)
+        print(f"Sending command: {command!r}")
         writer.write(command.encode())
         await writer.drain()
-        return await reader.read(1024)
+        print("Command sent, waiting for response...")
+
+        try:
+            # Add timeout to the read operation
+            response = await asyncio.wait_for(reader.read(1024), timeout=timeout)
+            print(f"Received response: {response!r}")
+            return response
+        except asyncio.TimeoutError:
+            print(
+                f"Timeout waiting for response to command: {args[0] if args else 'unknown'}"
+            )
+            print(f"Is writer closed? {writer.is_closing()}")
+            raise
+        except Exception as e:
+            print(f"Error reading response: {e}")
+            raise
 
     @pytest.mark.asyncio
     async def test_ping_command(self, redis_client):
@@ -111,7 +131,7 @@ class TestCommandResponses:
 
         # Test GET non-existent key
         response = await self.send_command(reader, writer, "GET", "nonexistent")
-        assert response == b"+\r\n"  # Empty string response for non-existent keys
+        assert response == b"$-1\r\n"  # Null bulk string for non-existent keys
 
     @pytest.mark.asyncio
     async def test_expiration(self, redis_client):
@@ -131,9 +151,9 @@ class TestCommandResponses:
         # Wait for expiration
         await asyncio.sleep(0.2)
 
-        # Should be expired (returns empty string)
+        # Should be expired (returns null bulk string)
         response = await self.send_command(reader, writer, "GET", "temp_key")
-        assert response == b"+\r\n"  # Empty string response for expired keys
+        assert response == b"$-1\r\n"  # Null bulk string for expired keys
 
     @pytest.mark.asyncio
     async def test_invalid_command(self, redis_client):

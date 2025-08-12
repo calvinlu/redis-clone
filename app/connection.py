@@ -5,7 +5,7 @@ parse commands, and dispatch them to appropriate command handlers.
 """
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 from app.commands import (
     CommandDispatcher,
@@ -41,7 +41,7 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
 
 async def _execute_command(
     dispatcher: CommandDispatcher, command: str, args: list
-) -> Optional[str]:
+) -> Any:
     """Execute a command using the dispatcher and handle any errors.
 
     Args:
@@ -50,10 +50,15 @@ async def _execute_command(
         args: List of arguments for the command
 
     Returns:
-        The command response or None if no response should be sent
+        The command response. For GET command, returns None for non-existent keys
+        which will be formatted as a null bulk string ($-1\r\n).
     """
     try:
-        return await dispatcher.execute(command, *args)
+        result = await dispatcher.execute(command, *args)
+        # Return the result as-is to allow for proper RESP2 formatting
+        # None will be formatted as null bulk string ($-1\r\n)
+
+        return result
     except ValueError as e:
         return format_error(str(e))
     except Exception as e:  # pylint: disable=broad-except
@@ -73,12 +78,12 @@ async def _send_response(writer: asyncio.StreamWriter, response: Any) -> bool:
     """
     try:
         # Format the response if it's not already bytes
-        if response is not None and not isinstance(response, (bytes, bytearray)):
+        if not isinstance(response, (bytes, bytearray)):
             response = format_response(response)
 
-        if response is not None:
-            writer.write(response)
-            await writer.drain()
+        # Write the response (could be None which is formatted as null bulk string)
+        writer.write(response)
+        await writer.drain()
         return True
     except (ConnectionError, asyncio.CancelledError) as e:
         print(f"Connection error while sending response: {e}")
@@ -123,19 +128,26 @@ async def handle_connection(
     try:
         while True:
             try:
+                print(f"[{addr}] Waiting for command...")
                 # Parse the command
                 command, args = await parser.parse_command()
-                print(f"Received command: {command} with args: {args}")
+                print(f"[{addr}] Received command: {command} with args: {args}")
 
                 if not command:
+                    print(f"[{addr}] Empty command, closing connection")
                     break
 
                 # Execute command and get response
+                print(f"[{addr}] Executing command...")
                 response = await _execute_command(dispatcher, command, args)
+                print(f"[{addr}] Command executed, response: {response!r}")
 
                 # Send response if we have one
+                print(f"[{addr}] Sending response...")
                 if not await _send_response(writer, response):
+                    print(f"[{addr}] Failed to send response")
                     break
+                print(f"[{addr}] Response sent successfully")
 
             except asyncio.IncompleteReadError:
                 print("Client disconnected")
