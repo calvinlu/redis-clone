@@ -10,10 +10,6 @@ from .base import BaseStore
 from .list_store import ListStore
 from .string_store import StringStore
 
-# Backward compatibility for existing code
-_legacy_store = {}
-_legacy_expirations = {}
-
 
 class Store:
     """Main store class that manages different data types.
@@ -29,12 +25,8 @@ class Store:
             "string": StringStore(),
             "list": ListStore(),
         }
+        # Track the type of each key (string, list, etc.)
         self.key_types: Dict[str, str] = {}
-
-        # For backward compatibility with legacy code
-        global _legacy_store, _legacy_expirations
-        self.store = _legacy_store
-        self.expirations = _legacy_expirations
 
     def _get_store(self, key: str, expected_type: Optional[str] = None) -> BaseStore:
         """Get the store for a key, with optional type checking.
