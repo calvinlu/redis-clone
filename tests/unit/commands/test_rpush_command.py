@@ -67,7 +67,7 @@ class TestRPushCommand:
     ) -> None:
         """Test RPUSH without a key raises an error."""
         with pytest.raises(
-            TypeError, match="wrong number of arguments for 'rpush' command"
+            ValueError, match="wrong number of arguments for 'rpush' command"
         ):
             await command.execute(store=mock_store)
 
@@ -77,7 +77,7 @@ class TestRPushCommand:
     ) -> None:
         """Test RPUSH without values raises an error."""
         with pytest.raises(
-            TypeError, match="wrong number of arguments for 'rpush' command"
+            ValueError, match="wrong number of arguments for 'rpush' command"
         ):
             await command.execute("mylist", store=mock_store)
 

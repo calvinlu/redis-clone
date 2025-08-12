@@ -26,7 +26,7 @@ class RPushCommand(Command):
             TypeError: If no key or values are provided.
         """
         if len(args) < 2:
-            raise TypeError("wrong number of arguments for 'rpush' command")
+            raise ValueError("wrong number of arguments for 'rpush' command")
 
         store = kwargs.get("store")
         if not store:
