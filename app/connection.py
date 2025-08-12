@@ -5,10 +5,8 @@ parse commands, and dispatch them to appropriate command handlers.
 """
 
 import asyncio
-from typing import Dict, Optional
 
 from app.commands import (
-    Command,
     CommandDispatcher,
     echo_command,
     get_command,
@@ -88,7 +86,9 @@ async def handle_connection(
                         for arg in (message[1:] if len(message) > 1 else [])
                     ]
                 except (UnicodeDecodeError, AttributeError) as e:
-                    response = format_error("ERR invalid command or arguments")
+                    response = format_error(
+                        f"ERR invalid command or arguments: {str(e)}"
+                    )
                     continue
 
                 try:

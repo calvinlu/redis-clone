@@ -1,0 +1,19 @@
+# Development dependencies
+# Install with: pip install -r requirements-dev.txt
+
+
+# Install the package in development mode
+-e .
+
+# Code quality
+black>=22.0.0
+flake8>=4.0.0
+
+# Development tools
+ipython>=8.0.0
+isort>=5.0.0
+mypy>=0.910
+# Core testing
+pytest>=7.0.0
+pytest-asyncio>=0.20.0
+pytest-cov>=3.0.0

@@ -39,3 +39,7 @@ class GetCommand(Command):
             raise ValueError("Store instance is required for GET command")
         key = str(args[0])
         return store.get_key(key)
+
+
+# Create a singleton instance of the command
+command = GetCommand()
