@@ -3,7 +3,7 @@
 This module provides a Store class that supports multiple data types (strings, lists, etc.)
 while maintaining Redis's single-type-per-key semantics.
 """
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 # Import store implementations
 from .base import BaseStore

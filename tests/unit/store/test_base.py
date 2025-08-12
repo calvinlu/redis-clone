@@ -7,13 +7,13 @@ from app.store.base import BaseStore
 def test_base_store_interface():
     """Test that BaseStore defines the required interface."""
     with pytest.raises(TypeError):
-        BaseStore()  # Can't instantiate abstract class
+        BaseStore()  # noqa: B024  # Testing abstract class instantiation
 
     class TestStore(BaseStore):
-        def get_type(self):
+        def get_type(self) -> str:
             return "test"
 
-        def delete(self, key):
+        def delete(self, key: str) -> bool:
             return True
 
     store = TestStore()
