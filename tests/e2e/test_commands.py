@@ -3,67 +3,12 @@
 These tests verify that commands return the correct RESP2 formatted responses.
 """
 import asyncio
-import socket
 
 import pytest
-
-from app.connection import create_dispatcher, handle_connection
-from app.store import Store
-
-# Test server configuration
-TEST_HOST = "127.0.0.1"
-
-
-def get_available_port():
-    """Find an available port for testing."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((TEST_HOST, 0))
-        return s.getsockname()[1]
 
 
 class TestCommandResponses:
     """Test that commands return properly formatted RESP2 responses."""
-
-    @pytest.fixture
-    async def redis_server(self):
-        """Fixture to start and stop a test Redis server."""
-        # Create a new store and dispatcher for testing
-        store = Store()
-        dispatcher = create_dispatcher(store)
-
-        # Get an available port
-        port = get_available_port()
-
-        # Create server with the app's handle_connection
-        server = await asyncio.start_server(
-            lambda r, w: handle_connection(r, w, dispatcher),
-            TEST_HOST,
-            port,
-        )
-
-        # Store the port for use in tests
-        server.port = port
-
-        async with server:
-            server_task = asyncio.create_task(server.serve_forever())
-            try:
-                yield server
-            finally:
-                server_task.cancel()
-                try:
-                    await server_task
-                except asyncio.CancelledError:
-                    pass
-
-    @pytest.fixture
-    async def redis_client(self, redis_server):
-        """Fixture to provide a connected Redis client."""
-        reader, writer = await asyncio.open_connection(TEST_HOST, redis_server.port)
-        try:
-            yield reader, writer
-        finally:
-            writer.close()
-            await writer.wait_closed()
 
     def format_command(self, *args):
         """Format command arguments according to RESP2 protocol."""
