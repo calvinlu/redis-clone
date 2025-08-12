@@ -29,7 +29,8 @@ class SetCommand(Command):
         """Handle SET command by storing the key-value pair in the store.
 
         Args:
-            *args: Should contain the key as the first argument and value as the second.
+            *args: Should contain the key as the first argument, value as the second,
+                  and optionally 'PX' followed by TTL in milliseconds.
             store: The store instance to use for storage.
             **kwargs: Additional keyword arguments (not used).
 
@@ -37,19 +38,33 @@ class SetCommand(Command):
             str: The string 'OK' to indicate success.
 
         Raises:
-            ValueError: If key or value is not provided, or store is not provided.
+            ValueError: If arguments are invalid or store is not provided.
         """
         if len(args) < 2:
             raise ValueError(
-                "ERR wrong number of arguments for 'set' command, \
-                    expected 'SET key value'"
+                "ERR wrong number of arguments for 'set' command, expected 'SET key value [PX milliseconds]'"
             )
+
         if store is None:
             raise ValueError("ERR Store instance is required for SET command")
 
         key = str(args[0])
         value = str(args[1])
-        store.set_key(key, value)
+        ttl = None
+
+        # Handle TTL if provided
+        if len(args) >= 4 and args[2].upper() == "PX":
+            try:
+                ttl = int(args[3])
+                if ttl <= 0:
+                    raise ValueError("ERR invalid expire time in 'set' command")
+            except (ValueError, TypeError):
+                raise ValueError("ERR invalid expire time in 'set' command")
+        elif len(args) > 2:
+            # If there are more than 2 arguments but not in PX format
+            raise ValueError("ERR syntax error")
+
+        store.set_key(key, value, ttl=ttl)
         return "OK"
 
 
