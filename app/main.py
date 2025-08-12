@@ -5,9 +5,8 @@ This module initializes and runs the Redis-compatible server using asyncio.
 
 import asyncio
 
-from store.store import Store
-
 from app.connection import handle_connection
+from app.store.store import Store
 
 # Server configuration
 HOST = "localhost"
@@ -20,6 +19,7 @@ async def run_server() -> None:
     This function starts an asyncio server that handles incoming Redis client
     connections using the handle_connection callback.
     """
+    store: Store = Store()
     server = await asyncio.start_server(
         lambda r, w: handle_connection(r, w, store), HOST, PORT
     )
