@@ -8,7 +8,7 @@ class TestRPushE2E(BaseE2ETest):
     """End-to-end tests for the RPUSH command."""
 
     @pytest.mark.asyncio
-    async def test_rpush_basic_operations(self, redis_client):
+    async def test_rpush_basic_operations(self):
         """Test basic RPUSH operations."""
         # Test pushing to a new list
         result = await self.execute_command("RPUSH", "mylist", "hello")
@@ -29,11 +29,11 @@ class TestRPushE2E(BaseE2ETest):
         await self.execute_command("SET", "mystring", "hello")
 
         # Try to use RPUSH on a string key
-        with pytest.raises(redis.ResponseError, match="WRONGTYPE"):
+        with pytest.raises(redis_client.ResponseError, match="WRONGTYPE"):
             await self.execute_command("RPUSH", "mystring", "value1")
 
     @pytest.mark.asyncio
-    async def test_rpush_with_large_number_of_elements(self, redis_client):
+    async def test_rpush_with_large_number_of_elements(self):
         """Test RPUSH with a large number of elements."""
         values = [f"value{i}" for i in range(1000)]
         result = await self.execute_command("RPUSH", "biglist", *values)

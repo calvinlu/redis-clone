@@ -1,23 +1,49 @@
 """Base class for end-to-end tests."""
-import asyncio
 import os
+import socket
 import subprocess
 import time
-from typing import Any, Optional, Tuple
+from typing import Optional
 
 import pytest
-import redis.asyncio as redis
 
 # Get the server port from environment or use default
 TEST_PORT = int(os.environ.get("TEST_PORT", "6379"))
 SERVER_HOST = os.environ.get("SERVER_HOST", "localhost")
 
 
+class RedisTestClient:
+    """A simple Redis client using raw sockets for testing."""
+
+    def __init__(self, host: str = SERVER_HOST, port: int = TEST_PORT):
+        self.host = host
+        self.port = port
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((self.host, self.port))
+
+    def send_command(self, *args: str) -> str:
+        """Send a command to the Redis server using RESP protocol."""
+        command = f"*{len(args)}\r\n"
+        for arg in args:
+            command += f"${len(str(arg).encode('utf-8'))}\r\n{arg}\r\n"
+        self.socket.sendall(command.encode("utf-8"))
+        return self._read_response()
+
+    def _read_response(self) -> str:
+        """Read and parse the server response."""
+        response = self.socket.recv(1024).decode("utf-8")
+        return response.strip()
+
+    def close(self):
+        """Close the connection."""
+        self.socket.close()
+
+
 class BaseE2ETest:
     """Base class for end-to-end tests that need a running Redis server."""
 
     _server_process: Optional[subprocess.Popen] = None
-    _redis_client: Optional[redis.Redis] = None
+    _test_client: Optional[RedisTestClient] = None
 
     @classmethod
     def setup_class(cls):
@@ -44,41 +70,16 @@ class BaseE2ETest:
                 cls._server_process.kill()
 
     @pytest.fixture
-    async def redis_client(self) -> redis.Redis:
-        """Return a Redis client connected to the test server."""
-        if self._redis_client is None:
-            self._redis_client = redis.Redis(
-                host=SERVER_HOST,
-                port=TEST_PORT,
-                decode_responses=True,
-                socket_timeout=5,
-            )
+    def test_client(self) -> RedisTestClient:
+        """Return a test client connected to the server."""
+        if self._test_client is None:
+            self._test_client = RedisTestClient(SERVER_HOST, TEST_PORT)
+        return self._test_client
 
-        # Clear the database before each test
-        await self._redis_client.flushdb()
-        return self._redis_client
-
-    async def execute_command(self, *args: Any) -> Any:
-        """Execute a Redis command and return the result."""
+    def execute_command(self, *args: str) -> str:
+        """Execute a Redis command and return the raw response."""
         if not args:
             raise ValueError("No command specified")
-
-        command = args[0].upper()
-        args = args[1:]
-
-        if self._redis_client is None:
-            raise RuntimeError("Redis client not initialized")
-
-        # Special handling for commands that don't follow the standard pattern
-        if command == "LRANGE":
-            if len(args) < 3:
-                raise ValueError("LRANGE requires key, start, and end arguments")
-            key, start, end = args[0], int(args[1]), int(args[2])
-            return await self._redis_client.lrange(key, start, end)
-
-        # For standard commands, use the method with the same name as the command
-        if not hasattr(self._redis_client, command.lower()):
-            raise ValueError(f"Unsupported command: {command}")
-
-        method = getattr(self._redis_client, command.lower())
-        return await method(*args)
+        if self._test_client is None:
+            raise RuntimeError("Test client not initialized")
+        return self._test_client.send_command(*args)

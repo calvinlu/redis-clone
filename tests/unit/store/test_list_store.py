@@ -1,5 +1,5 @@
 """Unit tests for the ListStore class."""
-from typing import Any, List, Tuple
+from typing import List
 
 import pytest
 
@@ -130,6 +130,9 @@ class TestListStoreNormalization:
         self, store: ListStore, index: int, length: int, expected: int
     ):
         """Test _normalize_start_index with various inputs."""
+
+        # pylint: disable=protected-access
+
         assert store._normalize_start_index(index, length) == expected
 
     # Parameterized tests for _normalize_end_index
@@ -158,4 +161,7 @@ class TestListStoreNormalization:
         self, store: ListStore, index: int, length: int, expected: int
     ):
         """Test _normalize_end_index with various inputs."""
+
+        # pylint: disable=protected-access
+
         assert store._normalize_end_index(index, length) == expected

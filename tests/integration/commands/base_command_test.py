@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from app.commands.dispatcher import CommandDispatcher
+from app.connection import create_dispatcher
 from app.store import Store
 
 
@@ -18,8 +19,6 @@ class BaseCommandTest:
     @pytest.fixture
     def dispatcher(self, store: Store) -> CommandDispatcher:
         """Return a command dispatcher with all commands registered."""
-        from app.connection import create_dispatcher
-
         return create_dispatcher(store)
 
     async def execute_command(

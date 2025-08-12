@@ -8,13 +8,13 @@ import asyncio
 from typing import Any
 
 from app.commands import (
-    CommandDispatcher,
     echo_command,
     get_command,
     ping_command,
     rpush_command,
     set_command,
 )
+from app.commands.dispatcher import CommandDispatcher
 from app.parser.parser import RESP2Parser
 from app.resp2 import format_error, format_response
 from app.store import Store
@@ -29,6 +29,7 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
     Returns:
         CommandDispatcher: Configured dispatcher with all commands registered.
     """
+
     dispatcher = CommandDispatcher(store)
 
     # Register all available commands
