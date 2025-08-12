@@ -41,7 +41,8 @@ class SetCommand(Command):
         """
         if len(args) < 2:
             raise ValueError(
-                "ERR wrong number of arguments for 'set' command, expected 'SET key value'"
+                "ERR wrong number of arguments for 'set' command, \
+                    expected 'SET key value'"
             )
         if store is None:
             raise ValueError("ERR Store instance is required for SET command")
