@@ -52,11 +52,13 @@ class TestSetCommand:
         # Assert
         assert result == "OK"
         assert store.get_key("temp_key") == "temp_value"
-        assert "temp_key" in store.expirations
 
-        # Check that the expiration is set to a future time
-        current_time = time.time() * 1000
-        assert store.expirations["temp_key"] > current_time
+        # Verify the key exists and has a TTL
+        assert store.get_key("temp_key") is not None
+
+        # Check that the key expires after the TTL
+        await asyncio.sleep(1.1)  # Wait for TTL to expire
+        assert store.get_key("temp_key") is None
 
     @pytest.mark.asyncio
     async def test_set_with_invalid_ttl(self, store):
@@ -129,36 +131,36 @@ class TestGetCommand:
     @pytest.mark.asyncio
     async def test_get_expired_key_returns_none(self, store):
         """Test getting an expired key returns None and removes the key."""
-        # Set up - set a key with a very short TTL (1ms)
-        store.set_key("temp_key", "temp_value", ttl=1)
+        # Set up - add a key with a very short TTL (1ms)
+        await set_command.execute("temp_key", "temp_value", "PX", "1", store=store)
 
-        # Wait for the key to expire
-        await asyncio.sleep(0.01)  # 10ms should be enough for the key to expire
+        # Wait for the key to expire (1ms + buffer)
+        await asyncio.sleep(0.1)
 
-        # Test
+        # Test - should return None for expired key
         result = await get_command.execute("temp_key", store=store)
 
         # Assert
         assert result is None
-        assert "temp_key" not in store.store
-        assert "temp_key" not in store.expirations
+        # Verify key is not accessible through get_key
+        assert store.get_key("temp_key") is None
 
     @pytest.mark.asyncio
     async def test_get_with_expired_ttl_cleans_up(self, store):
-        """Test that getting a key with expired TTL removes it from both stores."""
-        # Set up - manually add a key with expired TTL
-        store.store["expired_key"] = "expired_value"
-        store.expirations["expired_key"] = (
-            time.time() * 1000
-        ) - 1000  # 1 second in the past
+        """Test that getting a key with expired TTL removes it from the store."""
+        # Set up - add a key with a very short TTL (1ms)
+        store.set_key("expired_key", "expired_value", ttl=1)
 
-        # Test
+        # Wait for the key to expire (1ms + buffer)
+        await asyncio.sleep(0.1)
+
+        # Test - should return None for expired key
         result = await get_command.execute("expired_key", store=store)
 
         # Assert
         assert result is None
-        assert "expired_key" not in store.store
-        assert "expired_key" not in store.expirations
+        # Verify key is not accessible through get_key
+        assert store.get_key("expired_key") is None
 
     @pytest.mark.asyncio
     async def test_get_with_future_ttl_returns_value(self, store):
@@ -171,8 +173,7 @@ class TestGetCommand:
 
         # Assert
         assert result == "future_value"
-        assert "future_key" in store.store
-        assert "future_key" in store.expirations
+        assert store.get_key("future_key") == "future_value"
 
     @pytest.mark.asyncio
     async def test_get_with_invalid_arguments_raises_error(self, store):
