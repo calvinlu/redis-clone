@@ -1,5 +1,8 @@
 """Unit tests for the Store class."""
 
+import time
+from unittest.mock import patch
+
 import pytest
 
 from app.store.store import Store
@@ -76,3 +79,24 @@ def test_overwrite_with_none(store):
     store.set_key("test", "value")
     store.set_key("test", None)
     assert store.get_key("test") == ""
+
+
+def test_set_with_ttl_before_expiry(store):
+    """Test that sets a key with an expiry and gets before expiration"""
+    store.set_key("test", "value", 10)
+    assert store.get_key("test") == "value"
+
+
+def test_set_with_ttl_after_expiry(store):
+    """Test that sets a key with an expiry and gets after expiration"""
+    with patch("time.time") as mock_time:
+        mock_time.return_value = 1000.0
+        store.set_key("test", "value", 10)
+        mock_time.return_value = 1000.02
+        assert store.get_key("test") is None
+
+
+def test_set_with_neg_expiry(store):
+    """Test that sets a key with a negative expiration"""
+    with pytest.raises(ValueError, match="ERR invalid expire time set"):
+        store.set_key("test", "value", -10)
