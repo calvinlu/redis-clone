@@ -5,37 +5,56 @@ parse commands, and dispatch them to appropriate command handlers.
 """
 
 import asyncio
-from typing import Dict
+from typing import Dict, Optional
 
-from app.commands.base_command import Command
-from app.commands.echo_command import EchoCommand
-from app.commands.get_command import GetCommand
-from app.commands.ping_command import PingCommand
-from app.commands.set_command import SetCommand
+from app.commands import (
+    Command,
+    CommandDispatcher,
+    echo_command,
+    get_command,
+    ping_command,
+    set_command,
+)
 from app.parser.parser import RESP2Parser
 from app.resp2 import format_error, format_response
-from app.store.store import Store
+from app.store import Store
 
-# Command registry mapping command names to their handler instances
-COMMAND_REGISTRY: Dict[bytes, Command] = {
-    b"PING": PingCommand(),
-    b"ECHO": EchoCommand(),
-    b"SET": SetCommand(),
-    b"GET": GetCommand(),
-}
+
+def create_dispatcher(store: Store) -> CommandDispatcher:
+    """Create and configure a command dispatcher with all available commands.
+
+    Args:
+        store: The store instance to be used by commands.
+
+    Returns:
+        CommandDispatcher: Configured dispatcher with all commands registered.
+    """
+    dispatcher = CommandDispatcher(store)
+
+    # Register all available commands
+    dispatcher.register(ping_command.command)
+    dispatcher.register(echo_command.command)
+    dispatcher.register(set_command.command)
+    dispatcher.register(get_command.command)
+
+    return dispatcher
 
 
 async def handle_connection(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, store: Store
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    dispatcher: CommandDispatcher,
 ) -> None:
     """Handle a new client connection.
 
     This coroutine is called for each new client connection. It reads commands
-    from the client, processes them, and sends back responses.
+    from the client, processes them using the command dispatcher, and sends
+    back responses.
 
     Args:
         reader: StreamReader for reading data from the client
         writer: StreamWriter for sending data to the client
+        dispatcher: CommandDispatcher instance for handling commands
     """
     parser = RESP2Parser(reader)
     addr = writer.get_extra_info("peername")
@@ -51,40 +70,35 @@ async def handle_connection(
                 if not message:
                     break
 
-                # Convert command to bytes for comparison
-                command = (
-                    message[0].upper()
-                    if isinstance(message, list) and len(message) > 0
-                    else b""
-                )
+                # Extract command and arguments
+                if not isinstance(message, list) or not message:
+                    response = format_error("ERR invalid message format")
+                    continue
 
-                # Process the command
-                response = None
-                command_handler = COMMAND_REGISTRY.get(command)
+                # Convert command name to string
+                try:
+                    command = (
+                        message[0].decode("utf-8")
+                        if isinstance(message[0], bytes)
+                        else str(message[0])
+                    )
+                    # Convert args to strings
+                    args = [
+                        arg.decode("utf-8") if isinstance(arg, bytes) else str(arg)
+                        for arg in (message[1:] if len(message) > 1 else [])
+                    ]
+                except (UnicodeDecodeError, AttributeError) as e:
+                    response = format_error("ERR invalid command or arguments")
+                    continue
 
-                if command_handler:
-                    try:
-                        # Convert message arguments to strings if they are bytes
-                        args = [
-                            arg.decode("utf-8") if isinstance(arg, bytes) else arg
-                            for arg in message[1:]
-                        ]
-
-                        # Special case for commands that need the store
-                        if command == b"SET":
-                            response = await command_handler.execute(*args, store=store)
-                        elif command == b"GET":
-                            response = await command_handler.execute(*args, store=store)
-                        else:
-                            response = await command_handler.execute(*args)
-
-                    except ValueError as e:
-                        response = format_error(str(e))
-                    except Exception as e:  # pylint: disable=broad-except
-                        print(f"Error executing command {command}: {e}")
-                        response = format_error(f"ERR {str(e)}")
-                else:
-                    response = format_error("unknown command")
+                try:
+                    # Dispatch the command to the appropriate handler
+                    response = await dispatcher.execute(command, *args)
+                except ValueError as e:
+                    response = format_error(str(e))
+                except Exception as e:  # pylint: disable=broad-except
+                    print(f"Error executing command {command}: {e}")
+                    response = format_error(f"ERR {str(e)}")
 
                 # Send the response if we have one
                 if response is not None:

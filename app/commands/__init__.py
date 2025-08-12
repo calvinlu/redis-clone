@@ -1,13 +1,13 @@
-"""Package containing Redis command implementations.
+"""Package containing Redis command implementations and dispatcher.
 
 This package contains modules that implement various Redis commands. Each command is
-implemented in its own module and follows a consistent interface with a COMMAND
-constant and a handle_command coroutine.
+implemented as a class that inherits from the base Command class and implements
+the execute method.
 
-Modules:
-    - echo: Implements the ECHO command
-    - ping: Implements the PING command
-    - set: Implements the SET command
+Key Components:
+    - Command: Base class for all Redis commands
+    - CommandDispatcher: Handles command registration and execution
+    - Individual command implementations (echo, ping, set, get, etc.)
 """
 
 from app.commands import (  # noqa: F401
@@ -16,5 +16,14 @@ from app.commands import (  # noqa: F401
     ping_command,
     set_command,
 )
+from app.commands.base_command import Command  # noqa: F401
+from app.commands.dispatcher import CommandDispatcher  # noqa: F401
 
-__all__ = ["echo_command", "ping_command", "set_command", "get_command"]
+__all__ = [
+    "Command",
+    "CommandDispatcher",
+    "echo_command",
+    "ping_command",
+    "set_command",
+    "get_command",
+]
