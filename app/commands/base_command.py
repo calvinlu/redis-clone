@@ -3,7 +3,7 @@
 This module defines the base Command class that all Redis commands should inherit from.
 """
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Union
+from typing import Any, Union
 
 
 class Command(ABC):
@@ -20,10 +20,9 @@ class Command(ABC):
         Returns:
             str: The command name in uppercase (e.g., 'PING', 'SET', 'GET').
         """
-        pass
 
     @abstractmethod
-    async def execute(self, *args: Any, **kwargs: Any) -> Union[str, bytes, None]:
+    async def execute(self, *args: Any, **kwargs: Any) -> Union[str, None]:
         """Execute the command with the given arguments.
 
         Args:
@@ -36,7 +35,6 @@ class Command(ABC):
         Raises:
             Exception: If there's an error executing the command.
         """
-        pass
 
     def __str__(self) -> str:
         """Return the command name for string representation."""

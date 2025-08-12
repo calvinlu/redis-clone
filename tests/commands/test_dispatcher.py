@@ -1,6 +1,6 @@
 """Unit tests for the CommandDispatcher class using pytest."""
 
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

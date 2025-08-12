@@ -40,9 +40,11 @@ class SetCommand(Command):
             ValueError: If key or value is not provided, or store is not provided.
         """
         if len(args) < 2:
-            raise ValueError("ERR wrong number of arguments for 'set' command")
+            raise ValueError(
+                "ERR wrong number of arguments for 'set' command, expected 'SET key value'"
+            )
         if store is None:
-            raise ValueError("Store instance is required for SET command")
+            raise ValueError("ERR Store instance is required for SET command")
 
         key = str(args[0])
         value = str(args[1])

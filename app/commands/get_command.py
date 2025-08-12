@@ -19,7 +19,9 @@ class GetCommand(Command):
     def name(self) -> str:
         return "GET"
 
-    async def execute(self, *args: Any, store: Optional[Store] = None, **kwargs: Any):
+    async def execute(
+        self, *args: Any, store: Optional[Store] = None, **kwargs: Any
+    ) -> Optional[str]:
         """Handle GET command by returning the value of the key saved in the store.
 
         Args:
@@ -28,15 +30,17 @@ class GetCommand(Command):
             **kwargs: Additional keyword arguments (not used).
 
         Returns:
-            str: The string of the key.
+            Optional[str]: The value of the key if it exists, None otherwise.
 
         Raises:
-            ValueError: If exactly 1 argument is provided or if store is not provided.
+            ValueError: If the wrong number of arguments is provided or if store is None.
         """
         if len(args) != 1:
-            raise ValueError("ERR wrong number of arguments for 'get' command")
+            raise ValueError(
+                "ERR wrong number of arguments for 'get' command, expected 'GET key'"
+            )
         if store is None:
-            raise ValueError("Store instance is required for GET command")
+            raise ValueError("ERR Store instance is required for GET command")
         key = str(args[0])
         return store.get_key(key)
 
