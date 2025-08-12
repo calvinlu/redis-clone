@@ -34,7 +34,8 @@ class RPushCommand(Command):
 
         key = args[0]
         values = args[1:]
-        return store.list_store.rpush(key, *values)
+        # Use the rpush method directly on the store, which will handle the list store internally
+        return store.rpush(key, *values)
 
 
 # Create a singleton instance of the command

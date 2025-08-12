@@ -71,6 +71,8 @@ class CommandDispatcher:
             # Return the result as-is to allow for proper RESP2 formatting
             # (e.g., None should be formatted as '$-1\r\n' for nil responses)
             return result
+        except TypeError as e:
+            raise TypeError(f"ERR {str(e)}") from e
         except Exception as e:
             # Re-raise the exception with a more descriptive message
             raise ValueError(f"ERR {str(e)}") from e

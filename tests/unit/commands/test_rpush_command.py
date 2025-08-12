@@ -17,7 +17,9 @@ class TestRPushCommand:
     @pytest.fixture
     def mock_store(self) -> MagicMock:
         """Return a mock store for testing."""
-        return MagicMock()
+        store = MagicMock()
+        store.rpush = MagicMock()
+        return store
 
     @pytest.mark.asyncio
     async def test_execute_with_valid_arguments(
@@ -25,7 +27,7 @@ class TestRPushCommand:
     ) -> None:
         """Test RPUSH with valid arguments."""
         # Setup
-        mock_store.list_store.rpush.return_value = 3
+        mock_store.rpush.return_value = 3
 
         # Execute
         result = await command.execute(
@@ -34,9 +36,7 @@ class TestRPushCommand:
 
         # Assert
         assert result == 3
-        mock_store.list_store.rpush.assert_called_once_with(
-            "mylist", "value1", "value2", "value3"
-        )
+        mock_store.rpush.assert_called_once_with("mylist", "value1", "value2", "value3")
 
     @pytest.mark.asyncio
     async def test_execute_with_single_value(
@@ -44,14 +44,14 @@ class TestRPushCommand:
     ) -> None:
         """Test RPUSH with a single value."""
         # Setup
-        mock_store.list_store.rpush.return_value = 1
+        mock_store.rpush.return_value = 1
 
         # Execute
         result = await command.execute("mylist", "single_value", store=mock_store)
 
         # Assert
         assert result == 1
-        mock_store.list_store.rpush.assert_called_once_with("mylist", "single_value")
+        mock_store.rpush.assert_called_once_with("mylist", "single_value")
 
     @pytest.mark.asyncio
     async def test_execute_without_store_raises_error(
