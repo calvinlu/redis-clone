@@ -44,3 +44,63 @@ class TestListStore:
         assert store.delete("mylist") is True
         assert store.lrange("mylist", 0, -1) == []
         assert store.delete("nonexistent") is False
+
+
+class TestListStoreNormalization:
+    """Test cases for ListStore index normalization methods."""
+
+    @pytest.fixture
+    def store(self):
+        """Create a fresh ListStore instance for each test."""
+        return ListStore()
+
+    # Test cases for _normalize_start_index
+    def test_normalize_start_positive_within_bounds(self, store):
+        """Test normalizing start index within bounds."""
+        assert store._normalize_start_index(2, 5) == 2
+
+    def test_normalize_start_positive_out_of_bounds(self, store):
+        """Test normalizing start index beyond list length."""
+        assert store._normalize_start_index(5, 5) == 5  # At boundary
+        assert store._normalize_start_index(10, 5) == 5  # Beyond boundary
+
+    def test_normalize_start_negative_within_bounds(self, store):
+        """Test normalizing negative start index within bounds."""
+        assert store._normalize_start_index(-2, 5) == 3  # 5-2=3
+
+    def test_normalize_start_negative_out_of_bounds(self, store):
+        """Test normalizing negative start index beyond list start."""
+        assert store._normalize_start_index(-5, 5) == 0  # At boundary
+        assert store._normalize_start_index(-10, 5) == 0  # Beyond boundary
+
+    def test_normalize_start_empty_list(self, store):
+        """Test normalizing start index with empty list."""
+        assert store._normalize_start_index(0, 0) == 0
+        assert store._normalize_start_index(-1, 0) == 0
+        assert store._normalize_start_index(1, 0) == 0
+
+    # Test cases for _normalize_end_index
+    def test_normalize_end_positive_within_bounds(self, store):
+        """Test normalizing end index within bounds."""
+        assert store._normalize_end_index(2, 5) == 2
+
+    def test_normalize_end_positive_out_of_bounds(self, store):
+        """Test normalizing end index beyond list length."""
+        assert store._normalize_end_index(4, 5) == 4  # At boundary
+        assert store._normalize_end_index(10, 5) == 4  # Beyond boundary
+
+    def test_normalize_end_negative_within_bounds(self, store):
+        """Test normalizing negative end index within bounds."""
+        assert store._normalize_end_index(-1, 5) == 4  # 5-1=4 (last element)
+        assert store._normalize_end_index(-2, 5) == 3  # 5-2=3
+
+    def test_normalize_end_negative_out_of_bounds(self, store):
+        """Test normalizing negative end index beyond list start."""
+        assert store._normalize_end_index(-5, 5) == 0  # At boundary
+        assert store._normalize_end_index(-10, 5) == -1  # Beyond boundary (empty range)
+
+    def test_normalize_end_empty_list(self, store):
+        """Test normalizing end index with empty list."""
+        assert store._normalize_end_index(0, 0) == -1
+        assert store._normalize_end_index(-1, 0) == -1
+        assert store._normalize_end_index(1, 0) == -1

@@ -49,8 +49,6 @@ async def dispatcher(store):
 class TestCommandDispatcher:
     """Test suite for the CommandDispatcher class using pytest-asyncio."""
 
-    """Test suite for the CommandDispatcher class using pytest."""
-
     async def test_register_command(self, dispatcher):
         """Test registering a command with the dispatcher."""
         command = TestCommand()

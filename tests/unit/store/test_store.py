@@ -48,5 +48,5 @@ class TestStore:
         assert store.get_key("key1") is None
 
         assert store.delete_key("list1") is True
-        with pytest.raises(TypeError):
-            store.lrange("list1", 0, -1)
+        # After deletion, lrange should return an empty list for non-existent keys
+        assert store.lrange("list1", 0, -1) == []
