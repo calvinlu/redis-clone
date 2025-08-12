@@ -48,6 +48,49 @@ class RESP2Parser:
         line = await self.reader.readuntil(CRLF)
         return line[:-2]  # Remove CRLF
 
+    async def parse_command(self) -> tuple[str, list[str]]:
+        """Parse and validate a Redis command from the stream.
+
+        Returns:
+            tuple[str, list[str]]: A tuple of (command_name, args) where command_name is uppercase.
+
+        Raises:
+            ConnectionError: If the connection is closed by the client.
+            ValueError: If the command structure is invalid.
+            asyncio.IncompleteReadError: If the connection is closed unexpectedly.
+        """
+        value = await self.parse()
+
+        # Command must be an array of bulk strings
+        if not isinstance(value, list):
+            raise ValueError("ERR Protocol error: expected array")
+
+        if not value:
+            raise ValueError("ERR Protocol error: empty command")
+
+        # Convert all elements to strings
+        try:
+            command_parts = []
+            for item in value:
+                if isinstance(item, bytes):
+                    command_parts.append(item.decode("utf-8"))
+                elif isinstance(item, str):
+                    command_parts.append(item)
+                else:
+                    raise ValueError(f"ERR Protocol error: invalid command format")
+
+            if not command_parts:
+                raise ValueError("ERR Protocol error: empty command")
+
+            # First part is the command name (case-insensitive in Redis)
+            command_name = command_parts[0].upper()
+            args = command_parts[1:]
+
+            return command_name, args
+
+        except UnicodeDecodeError as e:
+            raise ValueError("ERR Protocol error: invalid UTF-8 in command") from e
+
     async def parse(self) -> RESPValue:
         """Parse the next value from the stream.
 

@@ -125,6 +125,104 @@ async def test_parse_echo():
     )  # Second element should be the message 'hello' in bytes
 
 
+@pytest.mark.asyncio
+async def test_parse_ping_command():
+    """Test parsing a simple PING command."""
+    # PING command in RESP2 format: *1\r\n$4\r\nPING\r\n
+    # Create a mock reader with the PING command
+    data = b"*1\r\n$4\r\nPING\r\n"
+    reader = MockReader(data)
+    parser = RESP2Parser(reader)
+
+    # Parse the command
+    command, args = await parser.parse_command()
+
+    # Verify the result
+    assert command == "PING"
+    assert args == []
+
+
+@pytest.mark.asyncio
+async def test_parse_echo_command():
+    """Test parsing an ECHO command with an argument."""
+    # ECHO command in RESP2 format: *2\r\n$4\r\nECHO\r\n$11\r\nHello World\r\n
+    # Create a mock reader with the ECHO command
+    data = b"*2\r\n$4\r\nECHO\r\n$11\r\nHello World\r\n"
+    reader = MockReader(data)
+    parser = RESP2Parser(reader)
+
+    # Parse the command
+    command, args = await parser.parse_command()
+
+    # Verify the result
+    assert command == "ECHO"
+    assert args == ["Hello World"]
+
+
+@pytest.mark.asyncio
+async def test_parse_set_command():
+    """Test parsing a SET command with key and value."""
+    # SET command in RESP2 format: *3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n
+    # Create a mock reader with the SET command
+    data = b"*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n"
+    reader = MockReader(data)
+    parser = RESP2Parser(reader)
+
+    # Parse the command
+    command, args = await parser.parse_command()
+
+    # Verify the result
+    assert command == "SET"
+    assert args == ["key", "value"]
+
+
+@pytest.mark.asyncio
+async def test_parse_case_insensitive_command():
+    """Test that command names are case-insensitive."""
+    # Command with lowercase name: *1\r\n$4\r\nping\r\n
+    # Create a mock reader with the command
+    data = b"*1\r\n$4\r\nping\r\n"
+    reader = MockReader(data)
+    parser = RESP2Parser(reader)
+
+    # Parse the command
+    command, args = await parser.parse_command()
+
+    # Verify the result is uppercase
+    assert command == "PING"
+    assert args == []
+
+
+@pytest.mark.asyncio
+async def test_parse_empty_command():
+    """Test parsing an empty command raises an error."""
+    # Empty array: *0\r\n
+    # Create a mock reader with an empty command
+    data = b"*0\r\n"
+    reader = MockReader(data)
+    parser = RESP2Parser(reader)
+
+    # Parse the command and expect an error
+    with pytest.raises(ValueError, match="ERR Protocol error: empty command"):
+        await parser.parse_command()
+
+
+@pytest.mark.asyncio
+async def test_parse_invalid_utf8():
+    """Test parsing a command with invalid UTF-8 raises an error."""
+    # Command with invalid UTF-8: *1\r\n$4\r\n\x80\x81\x82\x83\r\n
+    # Create a mock reader with invalid UTF-8 data
+    data = b"*1\r\n$4\r\n\x80\x81\x82\x83\r\n"
+    reader = MockReader(data)
+    parser = RESP2Parser(reader)
+
+    # Parse the command and expect an error
+    with pytest.raises(
+        ValueError, match="ERR Protocol error: invalid UTF-8 in command"
+    ):
+        await parser.parse_command()
+
+
 if __name__ == "__main__":
     # This allows running the test directly: python -m tests.test_parser
     sys.exit(pytest.main(["-v", __file__]))
