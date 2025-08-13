@@ -98,3 +98,7 @@ class ListStore(BaseStore):
         existed = key in self.lists
         self.lists.pop(key, None)
         return existed
+
+    def flushdb(self) -> None:
+        """Deletes all keys from the list store"""
+        self.lists.clear()

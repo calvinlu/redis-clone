@@ -96,6 +96,49 @@ class TestListStore:
             """Test deleting a key that doesn't exist."""
             assert store.delete("nonexistent") is False
 
+    # Test flushdb functionality
+    class TestFlushDB:
+        """Tests for flushdb functionality."""
+
+        def test_flushdb_empty_store(self, store: ListStore):
+            """Test flushdb on an empty store."""
+            # Should not raise any exceptions
+            store.flushdb()
+            assert len(store.lists) == 0
+
+        def test_flushdb_with_values(self, populated_store: ListStore):
+            """Test flushdb removes all lists."""
+            # Verify we have data first
+            assert len(populated_store.lists) > 0
+
+            # Perform flushdb
+            populated_store.flushdb()
+
+            # Verify all lists are removed
+            assert len(populated_store.lists) == 0
+
+            # Verify we can't access the list anymore
+            assert populated_store.lrange("mylist", 0, -1) == []
+
+        def test_flushdb_affects_only_current_store(self):
+            """Test that flushdb only affects the current store instance."""
+            # Create two stores with the same data
+            store1 = ListStore()
+            store2 = ListStore()
+
+            store1.rpush("list1", "a", "b", "c")
+            store2.rpush("list1", "x", "y", "z")
+
+            # Flush store1
+            store1.flushdb()
+
+            # Verify store1 is empty
+            assert len(store1.lists) == 0
+
+            # Verify store2 still has its data
+            assert len(store2.lists) == 1
+            assert store2.lrange("list1", 0, -1) == ["x", "y", "z"]
+
 
 class TestListStoreNormalization:
     """Test cases for ListStore index normalization methods."""

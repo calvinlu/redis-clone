@@ -16,6 +16,9 @@ def test_base_store_interface():
         def delete(self, key: str) -> bool:
             return True
 
+        def flushdb(self) -> None:
+            return super().flushdb()
+
     store = TestStore()
     assert store.get_type() == "test"
     assert store.delete("test_key") is True

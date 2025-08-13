@@ -62,3 +62,8 @@ class StringStore(BaseStore):
         self.values.pop(key, None)
         self.expirations.pop(key, None)
         return existed
+
+    def flushdb(self) -> None:
+        """Deletes all entries from the string store."""
+        self.values.clear()
+        self.expirations.clear()

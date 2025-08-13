@@ -169,3 +169,14 @@ class Store:
         if result:
             del self.key_types[key]
         return result
+
+    def flushdb(self) -> bool:
+        """Deletes all keys from the store.
+
+        Returns:
+            bool: True if keys have been successfully deleted, False otherwise
+        """
+        for store in self.stores:
+            store.flushdb()
+        self.key_types.clear()
+        return True

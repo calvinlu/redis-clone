@@ -27,3 +27,7 @@ class BaseStore(ABC):
         Returns:
             bool: True if the key existed and was deleted, False otherwise
         """
+
+    @abstractmethod
+    def flushdb(self) -> None:
+        """Delete all keys from the store."""
