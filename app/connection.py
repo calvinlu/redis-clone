@@ -10,6 +10,7 @@ from typing import Any
 from app.commands import (
     echo_command,
     get_command,
+    lrange_command,
     ping_command,
     rpush_command,
     set_command,
@@ -38,6 +39,7 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
     dispatcher.register(set_command.command)
     dispatcher.register(get_command.command)
     dispatcher.register(rpush_command.command)
+    dispatcher.register(lrange_command.command)
 
     return dispatcher
 

@@ -30,7 +30,7 @@ def format_response(response: RESPValue) -> bytes:
         b'+OK\r\n'
         >>> format_response(42)
         b':42\r\n'
-        >>> format_response([b"foo", b"bar"])
+        >>> format_response(["foo", "bar"])
         b'*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n'
         >>> format_response(None)
         b'$-1\r\n'
@@ -38,7 +38,8 @@ def format_response(response: RESPValue) -> bytes:
         - Strings are encoded as simple strings (starts with '+').
         - Integers are encoded as integers (starts with ':').
         - Bytes/bytearrays are encoded as bulk strings (starts with '$').
-        - Lists/tuples are encoded as arrays (starts with '*').
+        - Lists/tuples are encoded as arrays (starts with '*'), with each element
+          converted to a bulk string if it's a string.
         - None is encoded as a null bulk string ('$-1\r\n').
     """
     if response is None:
@@ -51,6 +52,7 @@ def format_response(response: RESPValue) -> bytes:
     if isinstance(response, (bytes, bytearray)):
         # Bulk string
         return b"$" + str(len(response)).encode("utf-8") + b"\r\n" + response + b"\r\n"
+
     if isinstance(response, int):
         # Integer
         return f":{response}\r\n".encode("utf-8")
@@ -59,6 +61,9 @@ def format_response(response: RESPValue) -> bytes:
         # Array - recursively format each element
         result = [f"*{len(response)}\r\n".encode("utf-8")]
         for item in response:
+            # Convert string items to bytes for proper bulk string formatting
+            if isinstance(item, str):
+                item = item.encode("utf-8")
             result.append(format_response(item))
         return b"".join(result)
 

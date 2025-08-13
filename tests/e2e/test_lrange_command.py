@@ -78,7 +78,7 @@ class TestLRangeCommand(TestCommandResponses):
             reader, writer, "LRANGE", "mystring", "0", "-1"
         )
         assert response.startswith(
-            b"-WRONGTYPE"
+            b"-ERR WRONGTYPE"
         ), f"Expected WRONGTYPE error, got {response!r}"
 
     @pytest.mark.asyncio

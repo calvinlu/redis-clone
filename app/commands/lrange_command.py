@@ -5,26 +5,32 @@ while maintaining Redis's single-type-per-key semantics.
 """
 from typing import Any, List
 
-from app.commands.base_command import Command
+from .base_command import Command
 
 
 class LRangeCommand(Command):
-    """Handles the LRANGE command for returning a list splice"""
+    """Implementation of the LRANGE command.
+
+    Returns the specified elements of the list stored at key.
+    """
 
     @property
     def name(self) -> str:
         return "LRANGE"
 
-    async def execute(self, *args: Any, **kwards: Any) -> List[str]:
+    async def execute(self, *args: Any, **kwargs: Any) -> List[str]:
         if len(args) < 3:
             raise ValueError("wrong number of arguments for 'lrange' command")
 
-        store = kwards.get("store")
+        store = kwargs.get("store")
         if not store:
             raise ValueError("store not provided in kwargs")
 
         key = args[0]
-        start = args[1]
-        end = args[2]
+        start = int(args[1])
+        end = int(args[2])
 
         return store.lrange(key, start, end)
+
+
+command = LRangeCommand()

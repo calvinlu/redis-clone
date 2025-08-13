@@ -34,7 +34,7 @@ class TestLRangeCommand:
 
         # Assert
         assert result == ["one", "two", "three"]
-        mock_store.lrange.assert_called_once_with("mylist", "0", "-1")
+        mock_store.lrange.assert_called_once_with("mylist", 0, -1)
 
     @pytest.mark.asyncio
     async def test_execute_with_insufficient_arguments_raises_error(

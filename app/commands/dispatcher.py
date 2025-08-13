@@ -72,7 +72,7 @@ class CommandDispatcher:
             # (e.g., None should be formatted as '$-1\r\n' for nil responses)
             return result
         except TypeError as e:
-            raise TypeError(f"ERR {str(e)}") from e
+            raise TypeError(f"{str(e)}") from e
         except Exception as e:
             # Re-raise the exception with a more descriptive message
-            raise ValueError(f"ERR {str(e)}") from e
+            raise ValueError(f"{str(e)}") from e

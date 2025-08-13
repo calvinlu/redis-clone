@@ -148,6 +148,7 @@ class Store:
         Raises:
             TypeError: If the key exists but is not a list
         """
+
         store = self._get_store(key, "list")
         return store.lrange(key, start, end)  # type: ignore
 
