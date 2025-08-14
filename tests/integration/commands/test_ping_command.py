@@ -1,6 +1,7 @@
 """Integration tests for the PING command."""
 import pytest
 
+from app.commands.ping_command import command as ping_command
 from app.store.store import Store
 
 
@@ -10,7 +11,6 @@ class TestPingCommand:
     @pytest.fixture
     def command(self):
         """Get the ping command instance."""
-        from app.commands.ping_command import command as ping_command
 
         return ping_command
 

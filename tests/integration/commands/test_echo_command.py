@@ -1,6 +1,8 @@
 """Integration tests for the ECHO command."""
 import pytest
 
+from app.commands.echo_command import command as echo_command
+
 
 class TestEchoCommand:
     """Test cases for the ECHO command."""
@@ -8,7 +10,6 @@ class TestEchoCommand:
     @pytest.fixture
     def command(self):
         """Get the echo command instance."""
-        from app.commands.echo_command import command as echo_command
 
         return echo_command
 
