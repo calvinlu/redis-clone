@@ -3,6 +3,7 @@ import asyncio
 
 import pytest
 
+from app.commands.set_command import command as set_command
 from app.store.store import Store
 
 
@@ -12,7 +13,6 @@ class TestSetCommand:
     @pytest.fixture
     def command(self):
         """Get the set command instance."""
-        from app.commands.set_command import command as set_command
 
         return set_command
 

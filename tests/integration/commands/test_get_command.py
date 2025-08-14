@@ -1,9 +1,7 @@
 """Integration tests for the GET command."""
-import asyncio
-from unittest.mock import MagicMock, patch
-
 import pytest
 
+from app.commands.get_command import command as get_command
 from app.store.store import Store
 
 
@@ -13,7 +11,6 @@ class TestGetCommand:
     @pytest.fixture
     def command(self):
         """Get the get command instance."""
-        from app.commands.get_command import command as get_command
 
         return get_command
 

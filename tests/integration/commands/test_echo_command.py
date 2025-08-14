@@ -1,8 +1,6 @@
 """Integration tests for the ECHO command."""
 import pytest
 
-from app.store.store import Store
-
 
 class TestEchoCommand:
     """Test cases for the ECHO command."""
