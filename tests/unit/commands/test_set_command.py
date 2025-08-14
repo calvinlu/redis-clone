@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.commands.set_command import SetCommand
-from app.store.store import Store
+from app.commands.string.set_command import SetCommand
+from app.store import Store
 
 
 class TestSetCommand:

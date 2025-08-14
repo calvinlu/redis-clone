@@ -7,24 +7,16 @@ the execute method.
 Key Components:
     - Command: Base class for all Redis commands
     - CommandDispatcher: Handles command registration and execution
-    - Individual command implementations (echo, ping, set, get, etc.)
 """
 
-from app.commands import (  # noqa: F401
-    echo_command,
-    get_command,
-    ping_command,
-    rpush_command,
-    set_command,
-)
-from app.commands.base_command import Command  # noqa: F401
-from app.commands.dispatcher import CommandDispatcher  # noqa: F401
+# Import the base classes and dispatcher directly
+from .base_command import Command
+from .dispatcher import CommandDispatcher
+
+# Individual command imports will be handled by the modules that need them
+# This avoids circular imports while keeping the interface clean
 
 __all__ = [
     "Command",
     "CommandDispatcher",
-    "echo_command",
-    "ping_command",
-    "set_command",
-    "get_command",
 ]

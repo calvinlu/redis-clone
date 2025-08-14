@@ -4,8 +4,8 @@ import asyncio
 import pytest
 
 from app.commands.echo_command import command as echo_command
-from app.commands.get_command import command as get_command
-from app.commands.set_command import command as set_command
+from app.commands.string.get_command import command as get_command
+from app.commands.string.set_command import command as set_command
 from app.store.store import Store
 
 

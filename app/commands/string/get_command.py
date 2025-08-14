@@ -5,8 +5,8 @@ The GET command returns the value of a key. If the key does not exist, it return
 
 from typing import Any, Optional
 
-from ..store import Store
-from .base_command import Command
+from app.commands.base_command import Command
+from app.store import Store
 
 
 class GetCommand(Command):

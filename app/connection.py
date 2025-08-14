@@ -7,15 +7,15 @@ parse commands, and dispatch them to appropriate command handlers.
 import asyncio
 from typing import Any
 
-from app.commands import (
-    echo_command,
-    get_command,
-    lrange_command,
-    ping_command,
-    rpush_command,
-    set_command,
-)
 from app.commands.dispatcher import CommandDispatcher
+
+# Import commands from their respective modules
+from app.commands.echo_command import command as echo_command
+from app.commands.list.lrange_command import command as lrange_command
+from app.commands.list.rpush_command import command as rpush_command
+from app.commands.ping_command import command as ping_command
+from app.commands.string.get_command import command as get_command
+from app.commands.string.set_command import command as set_command
 from app.parser.parser import RESP2Parser
 from app.resp2 import format_error, format_response
 from app.store import Store
@@ -34,12 +34,12 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
     dispatcher = CommandDispatcher(store)
 
     # Register all available commands
-    dispatcher.register(ping_command.command)
-    dispatcher.register(echo_command.command)
-    dispatcher.register(set_command.command)
-    dispatcher.register(get_command.command)
-    dispatcher.register(rpush_command.command)
-    dispatcher.register(lrange_command.command)
+    dispatcher.register(ping_command)
+    dispatcher.register(echo_command)
+    dispatcher.register(set_command)
+    dispatcher.register(get_command)
+    dispatcher.register(rpush_command)
+    dispatcher.register(lrange_command)
 
     return dispatcher
 

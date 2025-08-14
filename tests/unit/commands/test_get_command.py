@@ -1,10 +1,10 @@
 """Unit tests for the Redis GET command."""
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from app.commands.get_command import GetCommand
-from app.store.store import Store
+from app.commands.string.get_command import GetCommand
+from app.store import Store
 
 
 class TestGetCommand:

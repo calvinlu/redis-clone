@@ -6,9 +6,8 @@ overwritten, regardless of its type.
 """
 from typing import Any, Optional
 
+from app.commands.base_command import Command
 from app.store.store import Store
-
-from .base_command import Command
 
 
 class SetCommand(Command):

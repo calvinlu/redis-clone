@@ -5,7 +5,7 @@ while maintaining Redis's single-type-per-key semantics.
 """
 from typing import Any, List
 
-from .base_command import Command
+from app.commands.base_command import Command
 
 
 class LRangeCommand(Command):
