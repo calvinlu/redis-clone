@@ -1,9 +1,17 @@
+"""LPUSH command for pushing elements to a list."""
+from typing import Any
+
+from app.commands.base_command import Command
+
+
 class LPushCommand(Command):
+    """Handles the LPUSH command for pushing elements to the front of a list. Multiple elements will be pushed and appear reversed."""
+
     @property
     def name(self) -> str:
         return "LPUSH"
 
-    async def execute(self, *args: Any, **kwargs: Any) -> init:
+    async def execute(self, *args: Any, **kwargs: Any) -> int:
         """Executes the LPUSH command.
 
         Args:
@@ -26,7 +34,7 @@ class LPushCommand(Command):
         key = args[0]
         values = args[1:]
         # Use the rpush method directly on the store, which will handle the list store internally
-        return store.rpush(key, *values)
+        return store.lpush(key, *values)
 
 
 # Create a singleton instance of the command

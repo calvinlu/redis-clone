@@ -39,8 +39,9 @@ class TestLPushCommand(BaseCommandTest):
         # Create a string key
         await self.execute_command(dispatcher, "SET", "mystring", "value")
         # Try to LPUSH to a string key
-        result = await self.execute_command(dispatcher, "LPUSH", "mystring", "value2")
-        assert "WRONGTYPE" in str(result)
+        with pytest.raises(TypeError) as exc_info:
+            await self.execute_command(dispatcher, "LPUSH", "mystring", "value2")
+        assert "WRONGTYPE" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_lpush_multiple_values(self, dispatcher):

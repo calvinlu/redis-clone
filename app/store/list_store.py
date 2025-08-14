@@ -1,4 +1,5 @@
 """List store implementation for Redis-like list operations."""
+from collections import deque
 from typing import Deque, Dict, List
 
 from .base import BaseStore
@@ -26,7 +27,7 @@ class ListStore(BaseStore):
             int: The new length of the list
         """
         if key not in self.lists:
-            self.lists[key] = []
+            self.lists[key] = deque()
         self.lists[key].extend(values)
         return len(self.lists[key])
 
@@ -41,7 +42,7 @@ class ListStore(BaseStore):
             int: The new length of the list
         """
         if key not in self.lists:
-            self.lists[key] = []
+            self.lists[key] = deque()
         self.lists[key].extendleft(values)
         return len(self.lists[key])
 
@@ -98,8 +99,8 @@ class ListStore(BaseStore):
         if norm_start > norm_end or norm_start >= length:
             return []
 
-        # Return the slice (end + 1 because Python slicing is exclusive)
-        return lst[norm_start : norm_end + 1]
+        # Convert deque to list for slicing since deques don't support slicing directly
+        return list(self.lists[key])[norm_start : norm_end + 1]
 
     def delete(self, key: str) -> bool:
         """Delete a key from the list store.
