@@ -1,5 +1,5 @@
 """List store implementation for Redis-like list operations."""
-from typing import Dict, List
+from typing import Deque, Dict, List
 
 from .base import BaseStore
 
@@ -9,7 +9,7 @@ class ListStore(BaseStore):
 
     def __init__(self):
         """Initialize a new ListStore."""
-        self.lists: Dict[str, List[str]] = {}
+        self.lists: Dict[str, Deque[str]] = {}
 
     def get_type(self) -> str:
         """Return the type name of this store."""
@@ -28,6 +28,21 @@ class ListStore(BaseStore):
         if key not in self.lists:
             self.lists[key] = []
         self.lists[key].extend(values)
+        return len(self.lists[key])
+
+    def lpush(self, key: str, *values: str) -> int:
+        """Prepend values to a list, creating it if it doesn't exist.
+
+        Args:
+            key: The list key
+            *values: Values to append
+
+        Returns:
+            int: The new length of the list
+        """
+        if key not in self.lists:
+            self.lists[key] = []
+        self.lists[key].extendleft(values)
         return len(self.lists[key])
 
     def _normalize_start_index(self, index: int, length: int) -> int:

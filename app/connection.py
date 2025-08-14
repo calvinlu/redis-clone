@@ -11,6 +11,8 @@ from app.commands.dispatcher import CommandDispatcher
 
 # Import commands from their respective modules
 from app.commands.echo_command import command as echo_command
+from app.commands.list import lpush_command
+from app.commands.list.lpush_command import command as lpush_command
 from app.commands.list.lrange_command import command as lrange_command
 from app.commands.list.rpush_command import command as rpush_command
 from app.commands.ping_command import command as ping_command
@@ -40,6 +42,7 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
     dispatcher.register(get_command)
     dispatcher.register(rpush_command)
     dispatcher.register(lrange_command)
+    dispatcher.register(lpush_command)
 
     return dispatcher
 

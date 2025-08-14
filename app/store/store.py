@@ -188,6 +188,30 @@ class Store:
         store = self._get_store(key, "list")
         return store.lrange(key, start, end)  # type: ignore
 
+    def lpush(self, key: str, *values: str) -> int:
+        """Append values to a list, creating it if it doesn't exist.
+
+        Args:
+            key: The list key
+            *values: Values to append
+
+        Returns:
+            The new length of the list
+
+        Raises:
+            TypeError: If the key exists but is not a list
+        """
+        if key in self.key_types and self.key_types[key] != "list":
+            raise TypeError(
+                "WRONGTYPE Operation against a key holding the wrong kind of value"
+            )
+
+        store = self._get_or_create_store("list")
+        if key not in self.key_types:
+            self.key_types[key] = "list"
+
+        return store.lpush(key, *values)  # type: ignore
+
     # ===== Common Operations =====
     def delete_key(self, key: str) -> bool:
         """Delete a key from the store.
