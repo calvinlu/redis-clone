@@ -1,6 +1,8 @@
 """Integration tests for the LRANGE command."""
 import pytest
 
+from app.commands.lrange_command import command as lrange_command
+from app.commands.rpush_command import command as rpush_command
 from app.store.store import Store
 
 
@@ -10,16 +12,15 @@ class TestLRangeCommand:
     @pytest.fixture
     def command(self):
         """Get the lrange command instance."""
-        from app.commands.lrange_command import command as lrange_command
 
         return lrange_command
 
     @pytest.fixture
     def store_with_list(self):
-        """Create a store with a list for testing."""
+        """Create a store with a list for testing using RPUSH."""
         store = Store()
-        # Add a list with 5 elements ["one", "two", "three", "four", "five"]
-        store.set_key("mylist", ["one", "two", "three", "four", "five"])
+        # Use RPUSH to add elements to the list, which is how Redis does it
+        store.rpush("mylist", "one", "two", "three", "four", "five")
         return store
 
     @pytest.mark.asyncio
@@ -77,9 +78,10 @@ class TestLRangeCommand:
     async def test_lrange_with_non_list_key(self, command):
         """Test LRANGE with a key that exists but is not a list."""
         store = Store()
+        # Use SET to create a string value, not a list
         store.set_key("notalist", "I am a string, not a list")
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(TypeError) as exc_info:
             await command.execute("notalist", "0", "-1", store=store)
         assert (
             "WRONGTYPE" in str(exc_info.value)
@@ -105,7 +107,8 @@ class TestLRangeCommand:
     async def test_lrange_with_empty_list(self, command):
         """Test LRANGE with an empty list."""
         store = Store()
-        store.set_key("emptylist", [])
+        # Create an empty list by pushing no elements
+        rpush_command.execute("emptylist", store=store)
 
         result = await command.execute("emptylist", "0", "-1", store=store)
         assert result == []

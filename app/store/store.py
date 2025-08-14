@@ -102,7 +102,7 @@ class Store:
         try:
             store = self._get_store(key)
             if store.get_type() == "string":
-                return store.get(key)  # type: ignore
+                return store.get(key)
             raise TypeError(
                 "WRONGTYPE Operation against a key holding the wrong kind of value"
             )

@@ -1,6 +1,4 @@
 """End-to-end tests for the LRANGE command."""
-import asyncio
-
 import pytest
 
 from tests.e2e.test_commands import TestCommandResponses
