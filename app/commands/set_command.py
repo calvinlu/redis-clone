@@ -58,8 +58,8 @@ class SetCommand(Command):
                 ttl = int(args[3])
                 if ttl <= 0:
                     raise ValueError("ERR invalid expire time in 'set' command")
-            except (ValueError, TypeError):
-                raise ValueError("ERR invalid expire time in 'set' command")
+            except (ValueError, TypeError) as exc:
+                raise ValueError("ERR invalid expire time in 'set' command") from exc
         elif len(args) > 2:
             # If there are more than 2 arguments but not in PX format
             raise ValueError("ERR syntax error")
