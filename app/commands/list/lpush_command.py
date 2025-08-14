@@ -5,7 +5,9 @@ from app.commands.base_command import Command
 
 
 class LPushCommand(Command):
-    """Handles the LPUSH command for pushing elements to the front of a list. Multiple elements will be pushed and appear reversed."""
+    """Handles the LPUSH command for pushing elements to the front of a list.
+    Multiple elements will be pushed and appear reversed.
+    """
 
     @property
     def name(self) -> str:

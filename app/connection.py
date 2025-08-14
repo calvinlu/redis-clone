@@ -11,7 +11,6 @@ from app.commands.dispatcher import CommandDispatcher
 
 # Import commands from their respective modules
 from app.commands.echo_command import command as echo_command
-from app.commands.list import lpush_command
 from app.commands.list.lpush_command import command as lpush_command
 from app.commands.list.lrange_command import command as lrange_command
 from app.commands.list.rpush_command import command as rpush_command
