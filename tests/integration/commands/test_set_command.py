@@ -13,7 +13,6 @@ class TestSetCommand:
     @pytest.fixture
     def command(self):
         """Get the set command instance."""
-
         return set_command
 
     @pytest.fixture
