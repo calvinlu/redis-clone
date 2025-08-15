@@ -32,7 +32,7 @@ class TestLLenCommandIntegration:
         assert result == 0
 
     @pytest.mark.asyncio
-    async def test_llen_returns_correct_length(self, dispatcher, store):
+    async def test_llen_returns_correct_length(self, dispatcher):
         """Test that LLEN returns the correct length of an existing list."""
         # First add some items to the list
         await dispatcher.execute("RPUSH", "mylist", "one", "two", "three")
@@ -42,7 +42,7 @@ class TestLLenCommandIntegration:
         assert result == 3
 
     @pytest.mark.asyncio
-    async def test_llen_with_wrong_type_raises_error(self, dispatcher, store):
+    async def test_llen_with_wrong_type_raises_error(self, dispatcher):
         """Test that LLEN with a non-list key raises an error."""
         # Set a string value
         await dispatcher.execute("SET", "mystring", "value")
