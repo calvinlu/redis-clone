@@ -24,13 +24,14 @@ class LPopCommand(Command):
         Raises:
             TypeError: If no key or values are provided.
         """
-        if len(args) != 1:
-            raise ValueError("wrong number of arguments for 'rpush' command")
+        if len(args) not in [1, 2]:
+            raise ValueError("wrong number of arguments for 'lpop' command")
 
         store = kwargs.get("store")
         key = args[0]
+        count = args[1] if args[1] else None
 
-        return store.lpop(key)
+        return store.lpop(key, count)
 
 
 command = LPopCommand()

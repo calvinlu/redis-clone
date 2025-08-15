@@ -1,6 +1,6 @@
 """List store implementation for Redis-like list operations."""
 from collections import deque
-from typing import Deque, Dict, List
+from typing import Deque, Dict, List, Union
 
 from .base import BaseStore
 
@@ -130,19 +130,28 @@ class ListStore(BaseStore):
         """Deletes all keys from the list store"""
         self.lists.clear()
 
-    def lpop(self, key: str) -> str:
-        """Removes the element at the front of the list for
-        the given key and returns the element
+    def lpop(self, key: str, count: int = None) -> Union[str, List[str], None]:
+        """Removes elements from the front of the list and returns them.
 
         Args:
             key: The key for the list.
+            count: Number of elements to pop. If None, pops a single element.
 
         Returns:
-            The element at the front of the list. If list is empty
-            or doesn't exist, return -1.
+            - Single element if count is None
+            - List of elements if count is provided
+            - None if list is empty or doesn't exist
         """
         if key not in self.lists or not self.lists.get(key):
-            return None
-        given_list: deque = self.lists.get(key)
+            return None if count is None else []
 
-        return given_list.popleft()
+        if count is not None and count <= 0:
+            return []
+
+        given_list = self.lists[key]
+
+        if count is None:
+            return given_list.popleft() if given_list else None
+
+        count = min(count, len(given_list))
+        return [given_list.popleft() for _ in range(count)]
