@@ -212,6 +212,29 @@ class Store:
 
         return store.lpush(key, *values)  # type: ignore
 
+    def llen(self, key: str) -> int:
+        """Get the length of the list.
+
+        Args:
+            key: The list key.
+
+        Returns:
+            The length of the list.
+
+        Raises:
+            TypeError: If the key exists, but is not a list.
+        """
+        if key in self.key_types and self.key_types[key] != "list":
+            raise TypeError(
+                "WRONGTYPE Operation against a key holding the wrong kind of value"
+            )
+
+        store = self._get_or_create_store("list")
+        if key not in self.key_types:
+            self.key_types[key] = "list"
+
+        return store.llen(key)  # type: ignore
+
     # ===== Common Operations =====
     def delete_key(self, key: str) -> bool:
         """Delete a key from the store.

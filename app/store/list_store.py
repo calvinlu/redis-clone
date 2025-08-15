@@ -60,6 +60,17 @@ class ListStore(BaseStore):
             return max(index + length, 0)
         return min(index, length)  # For start, we can go up to length (exclusive)
 
+    def llen(self, key: str) -> int:
+        """Returns the length of the list for the given key
+
+        Args:
+            key: The list key
+
+        Returns:
+            The length of the list for the given key
+        """
+        return len(self.lists[key]) if key in self.lists else 0
+
     def _normalize_end_index(self, index: int, length: int) -> int:
         """Normalize the end index according to Redis LRANGE behavior.
 
