@@ -29,7 +29,10 @@ class LPopCommand(Command):
 
         store = kwargs.get("store")
         key = args[0]
-        count = args[1] if args[1] else None
+        try:
+            count = int(args[1]) if len(args) == 2 else None
+        except ValueError as e:
+            raise ValueError("number of elements to lpop should be int") from e
 
         return store.lpop(key, count)
 

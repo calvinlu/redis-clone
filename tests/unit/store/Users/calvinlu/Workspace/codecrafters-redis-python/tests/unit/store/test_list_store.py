@@ -7,7 +7,7 @@ class TestLPop:
 
     def test_lpop_from_empty_list(self, store: ListStore):
         """Test LPOP on non-existent key returns -1."""
-        assert store.lpop("nonexistent") == "-1"
+        assert store.lpop("nonexistent") == None
 
     def test_lpop_removes_and_returns_first_element(self, store: ListStore):
         """Test LPOP removes and returns the first element."""
@@ -27,7 +27,7 @@ class TestLPop:
             assert result == expected[i]
 
         # List should now be empty
-        assert store.lpop("mylist") == "-1"
+        assert store.lpop("mylist") == None
         assert store.lrange("mylist", 0, -1) == []
 
     def test_lpop_after_rpush(self, store: ListStore):

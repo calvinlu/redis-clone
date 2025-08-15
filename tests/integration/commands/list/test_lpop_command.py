@@ -11,7 +11,7 @@ class TestLPopCommand(BaseCommandTest):
     async def test_lpop_from_empty_list(self, dispatcher):
         """Test LPOP on non-existent key returns -1."""
         result = await self.execute_command(dispatcher, "LPOP", "nonexistent")
-        assert result == "-1"
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_lpop_removes_and_returns_first_element(self, dispatcher):
@@ -41,7 +41,7 @@ class TestLPopCommand(BaseCommandTest):
         assert await self.execute_command(dispatcher, "LPOP", "mylist") == "c"
 
         # List should now be empty
-        assert await self.execute_command(dispatcher, "LPOP", "mylist") == "-1"
+        assert await self.execute_command(dispatcher, "LPOP", "mylist") == None
         assert await self.execute_command(dispatcher, "LLEN", "mylist") == 0
 
     @pytest.mark.asyncio
@@ -60,5 +60,7 @@ class TestLPopCommand(BaseCommandTest):
         with pytest.raises(ValueError, match="wrong number of arguments"):
             await self.execute_command(dispatcher, "LPOP")
 
-        with pytest.raises(ValueError, match="wrong number of arguments"):
+        with pytest.raises(
+            ValueError, match="number of elements to lpop should be int"
+        ):
             await self.execute_command(dispatcher, "LPOP", "key1", "key2")

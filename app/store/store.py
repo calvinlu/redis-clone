@@ -235,7 +235,7 @@ class Store:
 
         return store.llen(key)
 
-    def lpop(self, key: str) -> str:
+    def lpop(self, key: str, count: int = None) -> str:
         """Removes the element at the front of the list for the given key.
 
         Args:
@@ -253,7 +253,7 @@ class Store:
                 "WRONGTYPE Operation against a key holding the wrong kind of value"
             )
         store = self._get_or_create_store("list")
-        return store.lpop(key)
+        return store.lpop(key, count)
 
     # ===== Common Operations =====
     def delete_key(self, key: str) -> bool:

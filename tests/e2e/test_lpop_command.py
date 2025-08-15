@@ -30,16 +30,16 @@ class TestLPOPE2E(BaseE2ETest):
     async def test_lpop_until_empty(self):
         """Test LPOP until list is empty."""
         # Create a list
-        await self.execute_command("RPUSH", "mylist", "a", "b", "c")
+        await self.execute_command("RPUSH", "testlist", "a", "b", "c")
 
         # Pop all elements
-        assert await self.execute_command("LPOP", "mylist") == "a"
-        assert await self.execute_command("LPOP", "mylist") == "b"
-        assert await self.execute_command("LPOP", "mylist") == "c"
+        assert await self.execute_command("LPOP", "testlist") == "a"
+        assert await self.execute_command("LPOP", "testlist") == "b"
+        assert await self.execute_command("LPOP", "testlist") == "c"
 
         # List should now be empty
-        assert await self.execute_command("LPOP", "mylist") is None
-        assert await self.execute_command("LLEN", "mylist") == 0
+        assert await self.execute_command("LPOP", "testlist") is None
+        assert await self.execute_command("LLEN", "testlist") == 0
 
     @pytest.mark.asyncio
     async def test_lpop_with_large_number_of_elements(self):
@@ -85,5 +85,69 @@ class TestLPOPE2E(BaseE2ETest):
             await self.execute_command("LPOP")
 
         # Too many arguments
-        with pytest.raises(ResponseError, match="wrong number of arguments"):
+        with pytest.raises(
+            ResponseError, match="number of elements to lpop should be int"
+        ):
             await self.execute_command("LPOP", "key1", "key2")
+
+    @pytest.mark.asyncio
+    async def test_lpop_with_count_parameter(self):
+        """Test LPOP with count parameter."""
+        # Set up test data
+        await self.execute_command(
+            "RPUSH", "lpop_count", "one", "two", "three", "four", "five"
+        )
+
+        # Test LPOP with count less than list length
+        result = await self.execute_command("LPOP", "lpop_count", "2")
+        assert result == ["one", "two"], f"Expected ['one', 'two'], got {result!r}"
+
+        # Verify remaining elements
+        result = await self.execute_command("LRANGE", "lpop_count", "0", "-1")
+        assert result == [
+            "three",
+            "four",
+            "five",
+        ], f"Expected ['three', 'four', 'five'], got {result!r}"
+
+        # Test LPOP with count greater than remaining elements
+        result = await self.execute_command("LPOP", "lpop_count", "5")
+        assert result == [
+            "three",
+            "four",
+            "five",
+        ], f"Expected ['three', 'four', 'five'], got {result!r}"
+
+        # List should now be empty
+        assert await self.execute_command("LPOP", "lpop_count") is None
+        assert await self.execute_command("LLEN", "lpop_count") == 0
+
+        # Test LPOP with count 0 (should return empty list)
+        await self.execute_command("RPUSH", "lpop_count", "a", "b", "c")
+        result = await self.execute_command("LPOP", "lpop_count", "0")
+        assert result == [], f"Expected empty list, got {result!r}"
+        assert await self.execute_command("LLEN", "lpop_count") == 3  # List unchanged
+
+        # Test LPOP with negative count (should return empty list)
+        result = await self.execute_command("LPOP", "lpop_count", "-1")
+        assert result == [], f"Expected empty list, got {result!r}"
+        assert await self.execute_command("LLEN", "lpop_count") == 3  # List unchanged
+
+        # Test LPOP with count on empty list
+        result = await self.execute_command("LPOP", "lpop_count", "5")
+        assert result == ["a", "b", "c"], f"Expected ['a', 'b', 'c'], got {result!r}"
+
+    @pytest.mark.asyncio
+    async def test_lpop_with_invalid_count(self):
+        """Test LPOP with invalid count parameter."""
+        # Non-integer count
+        with pytest.raises(
+            ResponseError, match="number of elements to lpop should be int"
+        ):
+            await self.execute_command("LPOP", "mylist", "not_an_integer")
+
+        # Float count
+        with pytest.raises(
+            ResponseError, match="number of elements to lpop should be int"
+        ):
+            await self.execute_command("LPOP", "mylist", "2.5")
