@@ -129,3 +129,20 @@ class ListStore(BaseStore):
     def flushdb(self) -> None:
         """Deletes all keys from the list store"""
         self.lists.clear()
+
+    def lpop(self, key: str) -> str:
+        """Removes the element at the front of the list for
+        the given key and returns the element
+
+        Args:
+            key: The key for the list.
+
+        Returns:
+            The element at the front of the list. If list is empty
+            or doesn't exist, return -1.
+        """
+        if key not in self.lists or not self.lists.get(key):
+            return None
+        given_list: deque = self.lists.get(key)
+
+        return given_list.popleft()

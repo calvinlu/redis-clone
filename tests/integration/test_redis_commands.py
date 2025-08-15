@@ -211,8 +211,9 @@ class TestEchoCommand:
     @pytest.mark.asyncio
     async def test_echo_with_multiple_arguments_uses_first(self, command):
         """Test that ECHO only uses the first argument and ignores the rest."""
-        result = await command.execute("first", "second", "third")
-        assert result == "first"
+        with pytest.raises(ValueError) as exc_info:
+            await command.execute("first", "second", "third")
+        assert "wrong number of arguments for 'echo' command" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_echo_with_empty_message(self, command):

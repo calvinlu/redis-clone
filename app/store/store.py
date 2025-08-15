@@ -210,7 +210,7 @@ class Store:
         if key not in self.key_types:
             self.key_types[key] = "list"
 
-        return store.lpush(key, *values)  # type: ignore
+        return store.lpush(key, *values)
 
     def llen(self, key: str) -> int:
         """Get the length of the list.
@@ -233,7 +233,27 @@ class Store:
         if key not in self.key_types:
             self.key_types[key] = "list"
 
-        return store.llen(key)  # type: ignore
+        return store.llen(key)
+
+    def lpop(self, key: str) -> str:
+        """Removes the element at the front of the list for the given key.
+
+        Args:
+            key: The list key
+
+        Returns:
+            The element at the front of the list of the given key.\
+                 If list is empty or doesn't exist, return -1.
+
+        Raises:
+            TypeError: If the key exists, but is not a list.
+        """
+        if key in self.key_types and self.key_types[key] != "list":
+            raise TypeError(
+                "WRONGTYPE Operation against a key holding the wrong kind of value"
+            )
+        store = self._get_or_create_store("list")
+        return store.lpop(key)
 
     # ===== Common Operations =====
     def delete_key(self, key: str) -> bool:

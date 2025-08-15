@@ -32,7 +32,7 @@ class EchoCommand(Command):
         Raises:
             ValueError: If no message is provided.
         """
-        if not args:
+        if len(args) != 1:
             raise ValueError("ERR wrong number of arguments for 'echo' command")
         return str(args[0])
 
