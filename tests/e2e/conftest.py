@@ -48,9 +48,9 @@ async def redis_server():
 
 
 @pytest.fixture
-async def redis_client(redis_server):
+async def redis_client(server):
     """Fixture that provides a connected client to the test server."""
-    server_address, _ = redis_server
+    server_address, _ = server
 
     # Connect to the server
     reader, writer = await asyncio.open_connection(*server_address)
