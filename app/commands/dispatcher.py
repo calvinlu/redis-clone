@@ -68,7 +68,7 @@ class CommandDispatcher:
         # Otherwise, just pass the store
         return await command.execute(self.store, *args)
 
-    async def execute(self, command_name: str, *args: str, **kwargs: Any) -> Any:
+    async def execute(self, command_name: str, *args: str) -> Any:
         """Alias for dispatch() for backward compatibility.
 
         This is kept for backward compatibility with existing code.
