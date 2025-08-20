@@ -4,9 +4,11 @@ This module provides the CommandDispatcher class which is responsible for
 registering and executing Redis commands. It handles command lookup, argument
 processing, and error handling.
 """
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
+from app.blocking import BlockingManager
 from app.commands.base_command import Command
+from app.commands.blocking_command import BlockingCommand
 from app.store import Store
 
 
@@ -15,20 +17,17 @@ class CommandDispatcher:
 
     The CommandDispatcher maintains a registry of available commands and provides
     methods to execute them with proper argument handling and error management.
-    It's responsible for:
-    - Maintaining the command registry
-    - Routing commands to their handlers
-    - Handling basic command validation
-    - Standardizing error handling
     """
 
-    def __init__(self, store: Store):
-        """Initialize the CommandDispatcher with a store instance.
+    def __init__(self, store: Store, blocking_manager: BlockingManager):
+        """Initialize the CommandDispatcher with store and blocking manager.
 
         Args:
             store: The store instance that all commands will use.
+            blocking_manager: The blocking manager for handling blocking operations.
         """
         self.store = store
+        self.blocking_manager = blocking_manager
         self.commands: Dict[str, Command] = {}
 
     def register(self, command: Command) -> None:
@@ -45,34 +44,34 @@ class CommandDispatcher:
         # Store command with uppercase name for case-insensitive matching
         self.commands[command.name.upper()] = command
 
-    async def execute(self, command_name: str, *args: str, **kwargs: Any) -> str:
+    async def dispatch(self, command_name: str, *args: str) -> Any:
         """Execute a command with the given arguments.
 
         Args:
-            command_name: The name of the command to execute (case-insensitive).
-            *args: String arguments passed to the command.
-            **kwargs: Additional keyword arguments to pass to the command.
+            command_name: The name of the command to execute.
+            *args: Arguments to pass to the command.
 
         Returns:
-            str: The string result of the command execution.
+            The result of the command execution.
 
         Raises:
-            ValueError: If the command is not found or arguments are invalid.
+            ValueError: If the command is not found.
         """
-        # Convert command name to uppercase for case-insensitive matching
-        command_key = command_name.upper()
-        command = self.commands.get(command_key)
+        command = self.commands.get(command_name.upper())
         if not command:
             raise ValueError(f"unknown command '{command_name}'")
+        # If it's a blocking command, pass the blocking manager
+        if isinstance(command, BlockingCommand):
+            return await command.execute_blocking(
+                self.store, self.blocking_manager, *args
+            )
+        # Otherwise, just pass the store
+        return await command.execute(self.store, *args)
 
-        try:
-            # Execute the command with the store and any additional kwargs
-            result = await command.execute(*args, store=self.store, **kwargs)
-            # Return the result as-is to allow for proper RESP2 formatting
-            # (e.g., None should be formatted as '$-1\r\n' for nil responses)
-            return result
-        except TypeError as e:
-            raise TypeError(f"{str(e)}") from e
-        except Exception as e:
-            # Re-raise the exception with a more descriptive message
-            raise ValueError(f"{str(e)}") from e
+    async def execute(self, command_name: str, *args: str, **kwargs: Any) -> Any:
+        """Alias for dispatch() for backward compatibility.
+
+        This is kept for backward compatibility with existing code.
+        New code should use dispatch() instead.
+        """
+        return await self.dispatch(command_name, *args)

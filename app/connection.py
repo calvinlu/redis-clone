@@ -5,13 +5,14 @@ parse commands, and dispatch them to appropriate command handlers.
 """
 
 import asyncio
-from typing import Any
+import socket
+from typing import Any, Optional
 
+from app.blocking import BlockingManager
 from app.commands.dispatcher import CommandDispatcher
 
 # Import commands from their respective modules
 from app.commands.echo_command import command as echo_command
-from app.commands.list import lpop_command
 from app.commands.list.llen_command import command as llen_command
 from app.commands.list.lpop_command import command as lpop_command
 from app.commands.list.lpush_command import command as lpush_command
@@ -25,17 +26,19 @@ from app.resp2 import format_error, format_response
 from app.store import Store
 
 
-def create_dispatcher(store: Store) -> CommandDispatcher:
+def create_dispatcher(
+    store: Store, blocking_manager: BlockingManager
+) -> CommandDispatcher:
     """Create and configure a command dispatcher with all available commands.
 
     Args:
         store: The store instance to be used by commands.
+        blocking_manager: The blocking manager for handling blocking operations.
 
     Returns:
         CommandDispatcher: Configured dispatcher with all commands registered.
     """
-
-    dispatcher = CommandDispatcher(store)
+    dispatcher = CommandDispatcher(store, blocking_manager)
 
     # Register all available commands
     dispatcher.register(ping_command)
@@ -66,15 +69,12 @@ async def _execute_command(
         which will be formatted as a null bulk string ($-1\r\n).
     """
     try:
-        result = await dispatcher.execute(command, *args)
-        # Return the result as-is to allow for proper RESP2 formatting
-        # None will be formatted as null bulk string ($-1\r\n)
+        # Execute the command and get the result
+        result = await dispatcher.dispatch(command, *args)
         return result
-    except ValueError as e:
-        return format_error(str(e))
     except Exception as e:  # pylint: disable=broad-except
         print(f"Error executing command {command}: {e}")
-        return format_error(f"ERR {str(e)}")
+        return format_error(str(e))
 
 
 async def _send_response(writer: asyncio.StreamWriter, response: Any) -> bool:
@@ -120,6 +120,7 @@ async def handle_connection(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
     dispatcher: CommandDispatcher,
+    blocking_manager: BlockingManager,
 ) -> None:
     """Handle a new client connection.
 
@@ -131,45 +132,41 @@ async def handle_connection(
         reader: StreamReader for reading data from the client
         writer: StreamWriter for sending data to the client
         dispatcher: CommandDispatcher instance for handling commands
+        blocking_manager: BlockingManager for handling blocking operations
     """
-    parser = RESP2Parser(reader)
     addr = writer.get_extra_info("peername")
     print(f"New connection from {addr}")
 
     try:
         while True:
             try:
-                print(f"[{addr}] Waiting for command...")
+                # Read command from client
+                data = await reader.read(1024)
+                if not data:
+                    break  # Connection closed by client
+
                 # Parse the command
-                command, args = await parser.parse_command()
-                print(f"[{addr}] Received command: {command} with args: {args}")
+                parser = RESP2Parser(data)
+                command, *args = parser.parse()
 
-                if not command:
-                    print(f"[{addr}] Empty command, closing connection")
-                    break
+                # Execute the command
+                response = await _execute_command(dispatcher, command.upper(), args)
 
-                # Execute command and get response
-                print(f"[{addr}] Executing command...")
-                response = await _execute_command(dispatcher, command, args)
-                print(f"[{addr}] Command executed, response: {response!r}")
-
-                # Send response if we have one
-                print(f"[{addr}] Sending response...")
+                # Send the response
                 if not await _send_response(writer, response):
-                    print(f"[{addr}] Failed to send response")
                     break
-                print(f"[{addr}] Response sent successfully")
 
-            except asyncio.IncompleteReadError:
-                print("Client disconnected")
-                break
-            except ConnectionResetError:
-                print("Connection reset by peer")
+            except ConnectionError as e:
+                print(f"Connection error with {addr}: {e}")
                 break
             except Exception as e:  # pylint: disable=broad-except
-                print(f"Unexpected error with connection from {addr}: {e}")
-                break
+                print(f"Error handling command from {addr}: {e}")
+                if not await _send_response(writer, format_error(str(e))):
+                    break
 
+    except asyncio.CancelledError:
+        print(f"Connection from {addr} cancelled")
+        raise
     except Exception as e:  # pylint: disable=broad-except
         print(f"Unexpected error with connection from {addr}: {e}")
     finally:
