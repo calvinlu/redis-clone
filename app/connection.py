@@ -5,10 +5,9 @@ parse commands, and dispatch them to appropriate command handlers.
 """
 
 import asyncio
-import socket
-from typing import Any, Optional
+from typing import Any
 
-from app.blocking import BlockingManager
+from app.blocking.manager import BlockingManager
 from app.commands.dispatcher import CommandDispatcher
 
 # Import commands from their respective modules

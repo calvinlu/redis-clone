@@ -4,9 +4,9 @@ This module provides the CommandDispatcher class which is responsible for
 registering and executing Redis commands. It handles command lookup, argument
 processing, and error handling.
 """
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from app.blocking import BlockingManager
+from app.blocking.manager import BlockingManager
 from app.commands.base_command import Command
 from app.commands.blocking_command import BlockingCommand
 from app.store import Store
