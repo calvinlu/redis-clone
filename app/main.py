@@ -5,9 +5,8 @@ This module initializes and runs the Redis-compatible server using asyncio.
 
 import asyncio
 import signal
-from typing import Tuple
 
-from app.blocking import BlockingManager
+from app.blocking.manager import BlockingManager
 from app.connection import create_dispatcher, handle_connection
 from app.store import Store
 
