@@ -219,10 +219,10 @@ def encode(
     """Encode a Python value to RESP2 format.
 
     This function converts Python native types to their RESP2 protocol representation.
-    It handles strings, integers, bytes, lists, and None values.
+    It handles strings, integers, bytes, lists, None values, and NullArray.
 
     Args:
-        value: The value to encode. Can be str, int, bytes, list, or None.
+        value: The value to encode. Can be str, int, bytes, list, None, or NullArray.
 
     Returns:
         bytes: The RESP2-encoded representation of the value.
