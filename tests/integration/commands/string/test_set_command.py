@@ -3,7 +3,7 @@ import asyncio
 
 import pytest
 
-from app.commands.set_command import command as set_command
+from app.commands.string.set_command import command as set_command
 from app.store.store import Store
 
 

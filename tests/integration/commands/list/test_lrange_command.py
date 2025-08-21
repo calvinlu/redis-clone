@@ -1,8 +1,9 @@
 """Integration tests for the LRANGE command."""
 import pytest
 
-from app.commands.lrange_command import command as lrange_command
-from app.commands.rpush_command import command as rpush_command
+from app.commands.list.lpop_command import command as lpop_command
+from app.commands.list.lrange_command import command as lrange_command
+from app.commands.list.rpush_command import command as rpush_command
 from app.store.store import Store
 
 
@@ -107,8 +108,9 @@ class TestLRangeCommand:
     async def test_lrange_with_empty_list(self, command):
         """Test LRANGE with an empty list."""
         store = Store()
-        # Create an empty list by pushing no elements
-        rpush_command.execute("emptylist", store=store)
+        # Create an empty list by pushing a value and then removing it
+        await rpush_command.execute("emptylist", "dummy_value", store=store)
+        await lpop_command.execute("emptylist", store=store)
 
         result = await command.execute("emptylist", "0", "-1", store=store)
         assert result == []

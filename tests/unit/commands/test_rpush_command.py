@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.commands.rpush_command import RPushCommand
+from app.commands.list.rpush_command import RPushCommand
 
 
 class TestRPushCommand:

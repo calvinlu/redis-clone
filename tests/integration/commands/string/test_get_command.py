@@ -1,7 +1,7 @@
 """Integration tests for the GET command."""
 import pytest
 
-from app.commands.get_command import command as get_command
+from app.commands.string.get_command import command as get_command
 from app.store.store import Store
 
 
@@ -17,8 +17,8 @@ class TestGetCommand:
     @pytest.fixture
     def mock_time(self):
         """Create a mock time function that we can control."""
-        # Start at 1,000,000 seconds since epoch
-        current_time = 1_000_000.0
+        # Start at 1,000,000,000 milliseconds since epoch
+        current_time = 1_000_000_000.0
 
         def get_time():
             return current_time
@@ -28,12 +28,15 @@ class TestGetCommand:
             current_time = new_time
 
         get_time.set = set_time
-        get_time.advance = lambda ms: set_time(current_time + (ms / 1000))
+        # Advance time by the specified number of milliseconds
+        get_time.advance = lambda ms: set_time(current_time + ms)
         return get_time
 
     @pytest.fixture
     def store(self, mock_time):
         """Create a fresh store instance for each test with controlled time."""
+        # Set mock time before creating the store
+        mock_time.set(1_000_000_000.0)  # 1 billion ms since epoch
         store = Store()
         store.set_time_function(mock_time)
         return store
@@ -48,23 +51,25 @@ class TestGetCommand:
         return store
 
     @pytest.mark.asyncio
-    async def test_get_expired_key_returns_none(
-        self, command, store_with_data, mock_time
-    ):
+    async def test_get_expired_key_returns_none(self, command, store, mock_time):
         """Test getting an expired key returns None and is treated as non-existent."""
+        # Set up test data with known time
+        mock_time.set(1_000_000.0)
+        store.set_key("expiring_key", "expiring_value", ttl=1000)  # 1000ms TTL
+
         # First verify the key exists and has a value
-        result = await command.execute("expiring_key", store=store_with_data)
+        result = await command.execute("expiring_key", store=store)
         assert result == "expiring_value"
 
         # Fast forward time to after TTL (1001ms later)
-        mock_time.advance(1001)  # 1001ms later
+        mock_time.advance(1001)
 
         # The key should now be expired and return None
-        result = await command.execute("expiring_key", store=store_with_data)
+        result = await command.execute("expiring_key", store=store)
         assert result is None
 
         # Verify the key is treated as non-existent by checking a subsequent GET
-        result = await command.execute("expiring_key", store=store_with_data)
+        result = await command.execute("expiring_key", store=store)
         assert result is None
 
     @pytest.mark.asyncio
@@ -92,9 +97,13 @@ class TestGetCommand:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_get_existing_key(self, command, store_with_data):
+    async def test_get_existing_key(self, command, store, mock_time):
         """Test getting an existing key returns its value."""
-        result = await command.execute("existing_key", store=store_with_data)
+        # Set up test data with known time
+        mock_time.set(1_000_000.0)
+        store.set_key("existing_key", "existing_value")
+
+        result = await command.execute("existing_key", store=store)
         assert result == "existing_value"
 
     @pytest.mark.asyncio
