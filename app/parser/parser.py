@@ -210,8 +210,8 @@ class RESP2Parser:
 class NullArray:
     """Special marker class for null arrays in RESP2 protocol."""
 
-    def __str__(self):
-        return "*-1"
+    def __bytes__(self):
+        return b"*-1\r\n"
 
 
 def encode(
