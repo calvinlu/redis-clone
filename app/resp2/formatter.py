@@ -5,7 +5,9 @@ It handles the serialization of Python types to the Redis Serialization Protocol
 """
 from typing import Any, Iterable, List, Union
 
-RESPValue = Union[str, int, List[Any], bytes, bytearray, None]
+from app.parser.parser import NullArray
+
+RESPValue = Union[str, int, List[Any], bytes, bytearray, None, NullArray]
 
 
 def format_response(response: RESPValue) -> bytes:
@@ -44,6 +46,9 @@ def format_response(response: RESPValue) -> bytes:
     """
     if response is None:
         return b"$-1\r\n"  # Null bulk string
+
+    if isinstance(response, NullArray):
+        return b"*-1\r\n"  # Null array in RESP2
 
     if isinstance(response, str):
         # Simple string
