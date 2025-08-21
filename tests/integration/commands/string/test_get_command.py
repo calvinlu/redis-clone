@@ -1,7 +1,7 @@
 """Integration tests for the GET command."""
 import pytest
 
-from app.commands.get_command import command as get_command
+from app.commands.string.get_command import command as get_command
 from app.store.store import Store
 
 

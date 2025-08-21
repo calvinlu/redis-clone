@@ -72,9 +72,7 @@ class ListStore(BaseStore):
             self.lists[key] = deque()
 
         result = None
-        for value in reversed(
-            values
-        ):  # Reverse to maintain order when prepending multiple
+        for value in values:  # Don't reverse the values when prepending
             self.lists[key].appendleft(value)
             result = len(self.lists[key])
 

@@ -206,8 +206,15 @@ class RESP2Parser:
         return [await self.parse() for _ in range(length)]
 
 
+# Special marker for null arrays in RESP
+class NullArray:
+    pass
+
+
 def encode(
-    value: Union[str, int, bytes, List[Union[str, bytes, int, None]], None]
+    value: Union[
+        str, int, bytes, List[Union[str, bytes, int, None, NullArray]], None, NullArray
+    ]
 ) -> bytes:
     """Encode a Python value to RESP2 format.
 
@@ -235,7 +242,12 @@ def encode(
         b'*3\r\n+SET\r\n+key\r\n+value\r\n'
         >>> encode(None)
         b'$-1\r\n'
+        >>> encode(NullArray())
+        b'*-1\r\n'
     """
+    if isinstance(value, NullArray):
+        return b"*-1\r\n"  # Null array
+
     if value is None:
         return b"$-1\r\n"  # Null bulk string
 

@@ -1,6 +1,5 @@
 """Integration tests for the BLPOP command."""
 import asyncio
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -73,14 +72,16 @@ class TestBLPopCommand:
 
     @pytest.mark.asyncio
     async def test_blpop_timeout(self, command, store):
-        """Test BLPOP with a timeout returns None if no data is available."""
+        """Test BLPOP with a timeout returns NullArray if no data is available."""
+        from app.parser.parser import NullArray
+
         key = "mylist"
 
         # Execute BLPOP with a short timeout
         result = await command.execute(key, "0.1", store=store)
 
-        # Should return None after the timeout
-        assert result is None
+        # Should return NullArray after the timeout (which encodes to *-1\r\n in RESP)
+        assert isinstance(result, NullArray)
 
     @pytest.mark.asyncio
     async def test_blpop_wrong_type(self, command, store):

@@ -1,8 +1,8 @@
 """Integration tests for the LRANGE command."""
 import pytest
 
-from app.commands.lrange_command import command as lrange_command
-from app.commands.rpush_command import command as rpush_command
+from app.commands.list.lrange_command import command as lrange_command
+from app.commands.list.rpush_command import command as rpush_command
 from app.store.store import Store
 
 

@@ -2,6 +2,7 @@
 from typing import Any, List, Union
 
 from app.commands.base_command import Command
+from app.parser.parser import NullArray
 
 
 class BLPopCommand(Command):
@@ -28,7 +29,7 @@ class BLPopCommand(Command):
 
         Returns:
             - If an element was popped: [key, value]
-            - If timeout was reached: None
+            - If timeout was reached: None (will be converted to null array in RESP)
 
         Raises:
             ValueError: If arguments are invalid or store is not provided.
@@ -68,7 +69,7 @@ class BLPopCommand(Command):
 
             # If we get here, all lists are empty - wait for data
             if timeout == 0:  # Non-blocking
-                return None
+                return NullArray()  # Return null array for non-blocking with no data
 
             # Make sure we have the list store created
             list_store = store._get_or_create_store(
@@ -84,7 +85,8 @@ class BLPopCommand(Command):
                 list_store.lpop(key)
                 return [key, value]
 
-            return None
+            # Return null array on timeout
+            return NullArray()
 
         except (ValueError, TypeError) as e:
             if "WRONGTYPE" in str(e):
