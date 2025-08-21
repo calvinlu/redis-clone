@@ -4,9 +4,8 @@ This module provides the Store class which is the main interface for all data st
 operations in the Redis server. It manages different data types (strings, lists, etc.)
 while maintaining Redis's single-type-per-key semantics.
 """
-import asyncio
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
 
 from app.blocking.queue_manager import BlockingQueueManager
 
@@ -108,10 +107,12 @@ class Store:
         """Set a custom time function for testing.
 
         Args:
-            time_func: Function that returns current time in seconds since epoch.
-                     Will be multiplied by 1000 for ms precision.
+            time_func: Function that returns current time in milliseconds since epoch.
         """
-        self._time_func = lambda: time_func() * 1000
+        self._time_func = time_func
+        # Update the time function in the string store if it exists
+        if "string" in self.stores:
+            self.stores["string"].set_time_function(time_func)
 
     # ===== String Operations (Backward Compatible) =====
     def set_key(self, key: str, value: str, ttl: Optional[int] = None) -> None:

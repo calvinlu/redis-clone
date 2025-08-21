@@ -77,7 +77,7 @@ class RESP2Parser:
                 elif isinstance(item, str):
                     command_parts.append(item)
                 else:
-                    raise ValueError(f"ERR Protocol error: invalid command format")
+                    raise ValueError("ERR Protocol error: invalid command format")
 
             if not command_parts:
                 raise ValueError("ERR Protocol error: empty command")

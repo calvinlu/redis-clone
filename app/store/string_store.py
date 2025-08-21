@@ -30,6 +30,14 @@ class StringStore(BaseStore):
         """Return the type name of this store."""
         return "string"
 
+    def set_time_function(self, time_func: Callable[[], float]) -> None:
+        """Set a custom time function for testing.
+
+        Args:
+            time_func: Function that returns current time in milliseconds since epoch.
+        """
+        self._time_func = time_func
+
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         """Set a string value with optional TTL in milliseconds.
 
