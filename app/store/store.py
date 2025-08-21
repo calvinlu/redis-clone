@@ -1,10 +1,14 @@
 """A Redis-like key-value store with support for multiple data types.
 
-This module provides a Store class that supports multiple data types (strings, lists, etc.)
+This module provides the Store class which is the main interface for all data storage
+operations in the Redis server. It manages different data types (strings, lists, etc.)
 while maintaining Redis's single-type-per-key semantics.
 """
+import asyncio
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from app.blocking.queue_manager import BlockingQueueManager
 
 # Import store implementations
 from .base import BaseStore
@@ -20,11 +24,25 @@ class Store:
     """
 
     def __init__(self):
-        """Initialize the store with empty dictionaries."""
+        """Initialize the store with empty dictionaries and a BlockingQueueManager."""
         self.stores: Dict[str, BaseStore] = {}
         self.key_types: Dict[str, str] = {}
         # Default to real time function
         self._time_func = lambda: time.time() * 1000  # ms since epoch
+        self._blocking_queue_manager = BlockingQueueManager()
+
+        # Initialize default stores
+        self._init_stores()
+
+    def _init_stores(self) -> None:
+        """Initialize the default stores with the blocking queue manager."""
+        # String store with expiration support
+        self.stores["string"] = StringStore(
+            on_delete=self._on_key_deleted, time_func=self._time_func
+        )
+
+        # List store with blocking operation support
+        self.stores["list"] = ListStore(queue_manager=self._blocking_queue_manager)
 
     def _get_or_create_store(self, key_type: str) -> BaseStore:
         """Get or create a store for the given key type.
@@ -41,7 +59,9 @@ class Store:
                     on_delete=self._on_key_deleted, time_func=self._time_func
                 )
             elif key_type == "list":
-                self.stores[key_type] = ListStore()
+                self.stores[key_type] = ListStore(
+                    queue_manager=self._blocking_queue_manager
+                )
             else:
                 raise ValueError(f"Unsupported key type: {key_type}")
         return self.stores[key_type]
@@ -271,11 +291,15 @@ class Store:
         store = self.stores[self.key_types[key]]
         return store.delete(key)
 
+    async def shutdown(self) -> None:
+        """Clean up resources on server shutdown."""
+        await self._blocking_queue_manager.shutdown()
+
     def flushdb(self) -> bool:
-        """Deletes all keys from the store.
+        """Delete all keys from all stores.
 
         Returns:
-            bool: True if keys have been successfully deleted, False otherwise
+            bool: Always returns True
         """
         for store in self.stores.values():
             store.flushdb()

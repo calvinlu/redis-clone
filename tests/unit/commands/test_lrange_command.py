@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.commands.lrange_command import LRangeCommand
+from app.commands.list.lrange_command import LRangeCommand
 
 
 class TestLRangeCommand:

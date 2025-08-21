@@ -1,6 +1,10 @@
 """List store implementation for Redis-like list operations."""
+import asyncio
 from collections import deque
-from typing import Deque, Dict, List, Union
+from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Union
+
+if TYPE_CHECKING:
+    from app.blocking.queue_manager import BlockingQueueManager
 
 from .base import BaseStore
 
@@ -8,9 +12,14 @@ from .base import BaseStore
 class ListStore(BaseStore):
     """Handles storage of list values."""
 
-    def __init__(self):
-        """Initialize a new ListStore."""
+    def __init__(self, queue_manager: Optional["BlockingQueueManager"] = None):
+        """Initialize a new ListStore.
+
+        Args:
+            queue_manager: Optional BlockingQueueManager for handling blocking operations
+        """
         self.lists: Dict[str, Deque[str]] = {}
+        self.queue_manager = queue_manager
 
     def get_type(self) -> str:
         """Return the type name of this store."""
@@ -28,23 +37,61 @@ class ListStore(BaseStore):
         """
         if key not in self.lists:
             self.lists[key] = deque()
-        self.lists[key].extend(values)
-        return len(self.lists[key])
+
+        result = None
+        for value in values:
+            self.lists[key].append(value)
+            result = len(self.lists[key])
+
+            # Notify any waiting clients if we have a queue manager
+            if (
+                self.queue_manager and result == 1
+            ):  # Only notify on transition from empty
+                try:
+                    # Try to get the running event loop
+                    loop = asyncio.get_running_loop()
+                    # If we get here, we're in an async context
+                    asyncio.create_task(self.queue_manager.notify_push(key, value))
+                except RuntimeError:
+                    # No event loop running, skip async notification (test environment)
+                    pass
+
+        return result or 0
 
     def lpush(self, key: str, *values: str) -> int:
         """Prepend values to a list, creating it if it doesn't exist.
 
         Args:
             key: The list key
-            *values: Values to append
+            *values: Values to prepend
 
         Returns:
             int: The new length of the list
         """
         if key not in self.lists:
             self.lists[key] = deque()
-        self.lists[key].extendleft(values)
-        return len(self.lists[key])
+
+        result = None
+        for value in reversed(
+            values
+        ):  # Reverse to maintain order when prepending multiple
+            self.lists[key].appendleft(value)
+            result = len(self.lists[key])
+
+            # Notify any waiting clients if we have a queue manager
+            if (
+                self.queue_manager and result == 1
+            ):  # Only notify on transition from empty
+                try:
+                    # Try to get the running event loop
+                    loop = asyncio.get_running_loop()
+                    # If we get here, we're in an async context
+                    asyncio.create_task(self.queue_manager.notify_push(key, value))
+                except RuntimeError:
+                    # No event loop running, skip async notification (test environment)
+                    pass
+
+        return result or 0
 
     def _normalize_start_index(self, index: int, length: int) -> int:
         """Normalize the start index according to Redis LRANGE behavior.
@@ -151,7 +198,15 @@ class ListStore(BaseStore):
         given_list = self.lists[key]
 
         if count is None:
-            return given_list.popleft() if given_list else None
+            value = given_list.popleft()
+            if not given_list:  # Clean up empty lists
+                del self.lists[key]
+            return value
 
         count = min(count, len(given_list))
-        return [given_list.popleft() for _ in range(count)]
+        result = [given_list.popleft() for _ in range(count)]
+
+        if not given_list:  # Clean up empty lists
+            del self.lists[key]
+
+        return result

@@ -23,13 +23,16 @@ class CommandDispatcher:
     """
 
     def __init__(self, store: Store):
-        """Initialize the CommandDispatcher with a store instance.
+        """Initialize the command dispatcher with built-in commands and a store instance."""
+        from . import COMMANDS
 
-        Args:
-            store: The store instance that all commands will use.
-        """
         self.store = store
         self.commands: Dict[str, Command] = {}
+        self.register_commands(COMMANDS)
+
+    def register_commands(self, commands: Dict[str, Command]) -> None:
+        for command in commands.values():
+            self.register(command)
 
     def register(self, command: Command) -> None:
         """Register a command with the dispatcher.
