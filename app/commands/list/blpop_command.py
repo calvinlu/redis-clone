@@ -1,7 +1,9 @@
 """Implementation of the Redis BLPOP command."""
-from typing import Any, Dict, List, Optional, Tuple, Union
+import asyncio
+from typing import Any, List, Optional, Union
 
 from app.commands.base_command import Command
+from app.parser.parser import NullArray
 
 
 class BLPopCommand(Command):
@@ -19,27 +21,62 @@ class BLPopCommand(Command):
         """Returns the command name, always in uppercase."""
         return "BLPOP"
 
-    async def execute(self, *args: Any, **kwargs: Any) -> Union[str, List[str], None]:
-        """Executes the BLPOP command.
+    def _validate_arguments(self, args: tuple, kwargs: dict) -> None:
+        """Validate command arguments."""
+        if len(args) < 2:
+            raise ValueError("wrong number of arguments for 'BLPOP' command")
+        if "store" not in kwargs:
+            raise ValueError("store is required")
+        try:
+            timeout = float(args[-1])
+            if timeout < 0:
+                raise ValueError("timeout can't be negative")
+        except (ValueError, TypeError) as e:
+            raise ValueError("timeout is not a valid float") from e
 
-        BLPOP is a blocking list pop primitive. It is the blocking version of LPOP because it blocks the
-        connection when there are no elements to pop from any of the given lists. An element is popped
-        from the head of the first list that is non-empty, with the given keys being checked in the
-        order that they are given.
+    def _is_list_key(self, store, key: str) -> bool:
+        """Check if a key exists and is a list."""
+        return key in store.key_types and store.key_types[key] == "list"
+
+    def _check_wrong_type(self, store, keys: List[str]) -> None:
+        """Check if any key exists with a non-list type."""
+        for key in keys:
+            if key in store.key_types and store.key_types[key] != "list":
+                raise TypeError(
+                    f"WRONGTYPE Operation against a key holding the wrong kind of value: {key}"
+                )
+
+    async def _try_pop(self, store, keys: List[str]) -> Optional[List[str]]:
+        """Try to pop an element from any of the given keys."""
+        for key in keys:
+            if key not in store.key_types:
+                continue
+
+            if store.key_types[key] != "list":
+                continue
+
+            # Try to pop from the left
+            value = store.lpop(key)
+            if value is not None:
+                return [key, value]
+        return None
+
+    async def execute(self, *args: Any, **kwargs: Any) -> Union[List[str], None]:
+        """Executes the BLPOP command.
 
         Args:
             *args: Command arguments where:
                 - args[:-1]: List of keys to check
-                - args[-1]: Timeout in seconds (0 for non-blocking)
+                - args[-1]: Timeout in seconds (0 for infinite wait)
             **kwargs: Additional keyword arguments:
                 - store: The data store instance (required)
 
         Returns:
             - If an element was popped: [key, value]
-            - If timeout was reached: None (formatted as null array in RESP)
+            - If timeout was reached: None
 
         Raises:
-            ValueError: If arguments are invalid, store is not provided, or timeout is invalid
+            ValueError: If arguments are invalid or store is not provided
             TypeError: If any key exists but is not a list
         """
         self._validate_arguments(args, kwargs)
@@ -47,21 +84,43 @@ class BLPopCommand(Command):
         timeout = float(args[-1])
         keys = list(args[:-1])
 
+        # Check for wrong type errors first
+        self._check_wrong_type(store, keys)
+
         # Try non-blocking pop first
-        result = await self._try_non_blocking_pop(store, keys)
+        result = await self._try_pop(store, keys)
         if result is not None:
             return result
 
-        # If non-blocking and no data, return immediately
+        # If timeout is 0, return None immediately
         if timeout == 0:
             return None
 
-        # Block and wait for data
-        return await self._wait_for_blocking_pop(store, keys, timeout)
+        # Otherwise, wait for data with timeout
+        try:
+            # Use a shorter sleep interval for more responsive behavior
+            sleep_interval = 0.01  # 10ms
+            total_waited = 0.0
 
-    def _validate_arguments(
-        self, args: Tuple[Any, ...], kwargs: Dict[str, Any]
-    ) -> None:
+            while True:
+                # Try to pop an element
+                result = await self._try_pop(store, keys)
+                if result is not None:
+                    return result
+
+                # Check if we've exceeded the timeout
+                if timeout > 0 and total_waited >= timeout:
+                    return None
+
+                # Small sleep to prevent busy waiting
+                await asyncio.sleep(sleep_interval)
+                if timeout > 0:  # Only increment if we have a timeout
+                    total_waited += sleep_interval
+
+        except asyncio.CancelledError:
+            return None
+
+    def _validate_arguments(self, args: tuple, kwargs: dict) -> None:
         """Validate BLPOP command arguments."""
         if len(args) < 2:
             raise ValueError("wrong number of arguments for 'blpop' command")
