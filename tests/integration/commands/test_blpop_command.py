@@ -4,7 +4,6 @@ import asyncio
 import pytest
 
 from app.commands.list.blpop_command import BLPopCommand
-from app.parser.parser import NullArray
 from app.store import Store
 
 
@@ -81,7 +80,7 @@ class TestBLPopCommand:
         result = await command.execute(key, "0.1", store=store)
 
         # Should return NullArray after the timeout (which encodes to *-1\r\n in RESP)
-        assert result == None
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_blpop_wrong_type(self, command, store):

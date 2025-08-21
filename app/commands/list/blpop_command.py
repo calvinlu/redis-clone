@@ -3,8 +3,6 @@ import asyncio
 from typing import Any, List, Optional, Union
 
 from app.commands.base_command import Command
-from app.parser.parser import NullArray
-from app.resp2.formatter import format_response
 
 
 class BLPopCommand(Command):
