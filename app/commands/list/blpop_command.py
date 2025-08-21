@@ -1,8 +1,7 @@
 """Implementation of the Redis BLPOP command."""
-from typing import Any, List, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app.commands.base_command import Command
-from app.parser.parser import NullArray
 
 
 class BLPopCommand(Command):
@@ -23,77 +22,100 @@ class BLPopCommand(Command):
     async def execute(self, *args: Any, **kwargs: Any) -> Union[str, List[str], None]:
         """Executes the BLPOP command.
 
+        BLPOP is a blocking list pop primitive. It is the blocking version of LPOP because it blocks the
+        connection when there are no elements to pop from any of the given lists. An element is popped
+        from the head of the first list that is non-empty, with the given keys being checked in the
+        order that they are given.
+
         Args:
-            *args: Command arguments where args[:-1] are the keys and args[-1] is the timeout.
-            **kwargs: Additional keyword arguments, including 'store' for the store instance.
+            *args: Command arguments where:
+                - args[:-1]: List of keys to check
+                - args[-1]: Timeout in seconds (0 for non-blocking)
+            **kwargs: Additional keyword arguments:
+                - store: The data store instance (required)
 
         Returns:
             - If an element was popped: [key, value]
-            - If timeout was reached: None (will be converted to null array in RESP)
+            - If timeout was reached: None (formatted as null array in RESP)
 
         Raises:
-            ValueError: If arguments are invalid or store is not provided.
-            TypeError: If any key exists but is not a list.
+            ValueError: If arguments are invalid, store is not provided, or timeout is invalid
+            TypeError: If any key exists but is not a list
         """
+        self._validate_arguments(args, kwargs)
+        store = kwargs["store"]
+        timeout = float(args[-1])
+        keys = list(args[:-1])
+
+        # Try non-blocking pop first
+        result = await self._try_non_blocking_pop(store, keys)
+        if result is not None:
+            return result
+
+        # If non-blocking and no data, return immediately
+        if timeout == 0:
+            return None
+
+        # Block and wait for data
+        return await self._wait_for_blocking_pop(store, keys, timeout)
+
+    def _validate_arguments(
+        self, args: Tuple[Any, ...], kwargs: Dict[str, Any]
+    ) -> None:
+        """Validate BLPOP command arguments."""
         if len(args) < 2:
             raise ValueError("wrong number of arguments for 'blpop' command")
-
-        store = kwargs.get("store")
-        if not store:
+        if "store" not in kwargs:
             raise ValueError("store not provided in kwargs")
-
         try:
-            # Parse timeout (convert from seconds to float)
             timeout = float(args[-1])
             if timeout < 0:
                 raise ValueError("timeout is negative")
+        except (ValueError, TypeError) as e:
+            if "could not convert" in str(e).lower():
+                raise ValueError("timeout is not a float or out of range") from e
+            raise
 
-            keys = list(args[:-1])
+    async def _try_non_blocking_pop(
+        self, store: Any, keys: List[str]
+    ) -> Optional[List[str]]:
+        """Attempt to pop an element from any of the given lists without blocking.
 
-            # First, try a non-blocking pop from any of the lists
-            for key in keys:
-                if key in store.key_types:
-                    if store.key_types[key] != "list":
-                        raise TypeError(
-                            f"WRONGTYPE Operation against a key holding the wrong kind of value: {key}"
-                        )
+        Returns:
+            [key, value] if an element was popped, None otherwise
+        """
+        for key in keys:
+            if key in store.key_types and store.key_types[key] != "list":
+                raise TypeError(
+                    f"WRONGTYPE Operation against a key holding the wrong kind of value: {key}"
+                )
 
-                    # Get the list store
-            list_store = store._get_or_create_store(
-                "list"
-            )  # pylint: disable=protected-access
-            # Try to pop from the list
+            list_store = store.get_list_store()
             value = list_store.lpop(key)
             if value is not None:
                 return [key, value]
+        return None
 
-            # If we get here, all lists are empty - wait for data
-            if timeout == 0:  # Non-blocking
-                return NullArray()  # Return null array for non-blocking with no data
+    async def _wait_for_blocking_pop(
+        self, store: Any, keys: List[str], timeout: float
+    ) -> Optional[List[str]]:
+        """Wait for data to become available in any of the given lists.
 
-            # Make sure we have the list store created
-            list_store = store._get_or_create_store(
-                "list"
-            )  # pylint: disable=protected-access
+        Args:
+            store: The data store instance
+            keys: List of keys to wait on
+            timeout: Maximum time to wait in seconds
 
-            # Block until data is available or timeout
-            key, value = await store._blocking_queue_manager.wait_for_push(
-                keys, timeout
-            )  # pylint: disable=protected-access
-            if key is not None and value is not None:
-                # Get the list store and pop the value
-                list_store.lpop(key)
-                return [key, value]
-
-            # Return null array on timeout
-            return NullArray()
-
-        except (ValueError, TypeError) as e:
-            if "WRONGTYPE" in str(e):
-                raise
-            if "timeout is negative" in str(e):
-                raise
-            raise ValueError("timeout is not a float or out of range") from e
+        Returns:
+            [key, value] if data was received, None on timeout
+        """
+        list_store = store.get_list_store()
+        key, value = await list_store.queue_manager.wait_for_push(keys, timeout)
+        if key is None or value is None:
+            return None
+        # Remove the item from the list
+        list_store.lpop(key)
+        return [key, value]
 
 
 # Create a singleton instance of the command

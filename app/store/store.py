@@ -95,6 +95,14 @@ class Store:
 
         return self.stores[key_type]
 
+    def get_list_store(self) -> "ListStore":
+        """Get the list store instance.
+
+        Returns:
+            ListStore: The list store instance
+        """
+        return self._get_or_create_store("list")
+
     def _on_key_deleted(self, key: str) -> None:
         """Callback when a key is deleted from a store.
 

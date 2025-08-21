@@ -48,6 +48,7 @@ def format_response(response: RESPValue) -> bytes:
         return b"$-1\r\n"  # Null bulk string
 
     if isinstance(response, NullArray):
+        # For BLPOP, we need to return a null array (*-1\r\n) not a null bulk string
         return b"*-1\r\n"  # Null array in RESP2
 
     if isinstance(response, str):
