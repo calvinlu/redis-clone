@@ -17,8 +17,8 @@ class TestGetCommand:
     @pytest.fixture
     def mock_time(self):
         """Create a mock time function that we can control."""
-        # Start at 1,000,000 seconds since epoch
-        current_time = 1_000_000.0
+        # Start at 1,000,000,000 milliseconds since epoch
+        current_time = 1_000_000_000.0
 
         def get_time():
             return current_time
@@ -28,7 +28,8 @@ class TestGetCommand:
             current_time = new_time
 
         get_time.set = set_time
-        get_time.advance = lambda ms: set_time(current_time + (ms / 1000))
+        # Advance time by the specified number of milliseconds
+        get_time.advance = lambda ms: set_time(current_time + ms)
         return get_time
 
     @pytest.fixture
