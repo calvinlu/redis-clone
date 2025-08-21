@@ -4,6 +4,7 @@ from typing import Any, List, Optional, Union
 
 from app.commands.base_command import Command
 from app.parser.parser import NullArray
+from app.resp2.formatter import format_response
 
 
 class BLPopCommand(Command):
@@ -47,7 +48,11 @@ class BLPopCommand(Command):
                 )
 
     async def _try_pop(self, store, keys: List[str]) -> Optional[List[str]]:
-        """Try to pop an element from any of the given keys."""
+        """Try to pop an element from any of the given keys.
+
+        Returns:
+            List with [key, value] if successful, None otherwise
+        """
         for key in keys:
             if key not in store.key_types:
                 continue
@@ -61,7 +66,7 @@ class BLPopCommand(Command):
                 return [key, value]
         return None
 
-    async def execute(self, *args: Any, **kwargs: Any) -> Union[List[str], None]:
+    async def execute(self, *args: Any, **kwargs: Any) -> Union[bytes, None]:
         """Executes the BLPOP command.
 
         Args:
@@ -92,9 +97,10 @@ class BLPopCommand(Command):
         if result is not None:
             return result
 
-        # If timeout is 0, return None immediately
+        # If timeout is 0, we should block indefinitely
+        # Use a short timeout and loop to allow for proper cancellation
         if timeout == 0:
-            return None
+            timeout = 0.1  # Short timeout for responsiveness
 
         # Otherwise, wait for data with timeout
         try:
