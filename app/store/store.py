@@ -113,7 +113,7 @@ class Store:
             str: The type of the value, one of:
                 - "string" for string values
                 - "list" for list values
-                - "none" if the key doesn't exist
+                - "none" if the key doesn't exist (as a simple string response)
         """
         if key not in self.key_types:
             return "none"
