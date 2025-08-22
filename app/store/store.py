@@ -113,7 +113,7 @@ class Store:
             str: The type of the value, one of:
                 - "string" for string values
                 - "list" for list values
-                - "none" if the key doesn't exist (as a simple string response)
+                - "none" if the key doesn't exist
         """
         if key not in self.key_types:
             return "none"
@@ -330,14 +330,3 @@ class Store:
             store.flushdb()
         self.key_types.clear()
         return True
-
-    def type(self, key: str) -> str:
-        """Gets the type for the given key.
-
-        Args:
-            key: The key to lookup the type.
-
-        Returns:
-            str: Gets the type for the given key.
-        """
-        return self.key_types.get(key)
