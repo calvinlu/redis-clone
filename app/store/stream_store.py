@@ -37,7 +37,7 @@ class StreamStore(BaseStore):
             The entry ID that was added
 
         Raises:
-            ValueError: If field_value_pairs is empty
+            ValueError: If no field-value pairs are provided
         """
         if not field_value_pairs:
             raise ValueError("ERR wrong number of arguments for 'xadd' command")
@@ -49,3 +49,11 @@ class StreamStore(BaseStore):
 
         self.streams[key].append(entry)
         return entry_id
+
+    def delete(self, key: str) -> bool:
+        existed = key in self.streams
+        self.streams.pop(key, None)
+        return existed
+
+    def flushdb(self) -> None:
+        self.streams.clear()

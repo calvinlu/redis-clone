@@ -8,6 +8,7 @@ import time
 from typing import Callable, Dict, List, Optional
 
 from app.blocking.queue_manager import BlockingQueueManager
+from app.store.stream_store import StreamStore
 
 # Import store implementations
 from .base import BaseStore
@@ -42,6 +43,9 @@ class Store:
 
         # List store with blocking operation support
         self.stores["list"] = ListStore(queue_manager=self._blocking_queue_manager)
+
+        # Stream store
+        self.stores["stream"] = StreamStore()
 
     def _get_or_create_store(self, key_type: str) -> BaseStore:
         """Get or create a store for the given key type.
@@ -283,6 +287,41 @@ class Store:
             )
         store = self._get_or_create_store("list")
         return store.lpop(key, count)
+
+    # ===== Stream Operations =====
+    def xadd(self, key: str, entry_id: str, **field_value_pairs: str) -> str:
+        """Add an entry to a stream.
+
+        Args:
+            key: The stream key
+            entry_id: The ID for the new entry
+            **field_value_pairs: Field-value pairs (field1=value1, field2=value2, ...)
+
+        Returns:
+            The entry ID that was added
+
+        Raises:
+            TypeError: If key exists and is not a stream
+            ValueError: If field_value_pairs is empty
+        """
+        # Check if key exists with a different type
+        if key in self.key_types and self.key_types[key] != "stream":
+            raise TypeError(
+                "WRONGTYPE Operation against a key holding the wrong kind of value"
+            )
+
+        if not field_value_pairs:
+            raise ValueError("ERR wrong number of arguments for 'xadd' command")
+
+        # Get or create the stream store
+        store = self._get_or_create_store("stream")
+
+        # If key doesn't exist, set its type to stream
+        if key not in self.key_types:
+            self.key_types[key] = "stream"
+
+        # Delegate to the stream store
+        return store.xadd(key, entry_id, **field_value_pairs)
 
     # ===== Common Operations =====
     def delete_key(self, key: str) -> bool:

@@ -14,11 +14,11 @@ class TestXAddCommandE2E(BaseE2ETest):
         result = await self._test_client.execute_command(
             "XADD", "mystream", "0-1", "temperature", "36"
         )
-        assert result == b"0-1"
+        assert result == "0-1"
 
         # Verify the type is set to 'stream'
         type_result = await self._test_client.execute_command("TYPE", "mystream")
-        assert type_result == b"stream"
+        assert type_result == "stream"
 
     @pytest.mark.asyncio
     async def test_xadd_with_multiple_field_value_pairs(self):
@@ -26,11 +26,11 @@ class TestXAddCommandE2E(BaseE2ETest):
         result = await self._test_client.execute_command(
             "XADD", "weather", "1526919030474-0", "temperature", "36", "humidity", "95"
         )
-        assert result == b"1526919030474-0"
+        assert result == "1526919030474-0"
 
         # Verify the type is set to 'stream'
         type_result = await self._test_client.execute_command("TYPE", "weather")
-        assert type_result == b"stream"
+        assert type_result == "stream"
 
     @pytest.mark.asyncio
     async def test_xadd_error_cases(self):
@@ -55,4 +55,4 @@ class TestXAddCommandE2E(BaseE2ETest):
             "XADD", "stream_key", "0-1", "foo", "bar"
         )
         type_result = await self._test_client.execute_command("TYPE", "stream_key")
-        assert type_result == b"stream"
+        assert type_result == "stream"

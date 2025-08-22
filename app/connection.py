@@ -18,6 +18,7 @@ from app.commands.list.lpush_command import command as lpush_command
 from app.commands.list.lrange_command import command as lrange_command
 from app.commands.list.rpush_command import command as rpush_command
 from app.commands.ping_command import command as ping_command
+from app.commands.stream.xadd_command import command as xadd_command
 from app.commands.string.get_command import command as get_command
 from app.commands.string.set_command import command as set_command
 from app.commands.type_command import command as type_command
@@ -50,6 +51,7 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
     dispatcher.register(lpop_command)
     dispatcher.register(blpop_command)
     dispatcher.register(type_command)
+    dispatcher.register(xadd_command)
 
     return dispatcher
 
