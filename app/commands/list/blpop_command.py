@@ -70,7 +70,16 @@ class BLPopCommand(Command):
                 # Convert the value to a string if it's not already
                 str_value = str(value)
                 if str_value:  # Make sure it's not an empty string
+                    # Return as a list with key and value
                     return [key, str_value]
+
+                # If we got an empty string, continue to next key
+                continue
+
+            # If list is empty after pop, remove the key if needed
+            if key in store.key_types and store.key_types[key] == "list":
+                if store.llen(key) == 0:
+                    store.delete(key)
 
         return None
 
@@ -78,6 +87,10 @@ class BLPopCommand(Command):
         self, store, keys: List[str], timeout: float
     ) -> Optional[List[str]]:
         """Wait for an element to be available in any of the given lists.
+
+        This method uses asyncio events to efficiently wait for data to become
+        available without busy-waiting. When a notification is received that data
+        is available, it attempts to pop the value once.
 
         Args:
             store: The store instance
@@ -91,15 +104,42 @@ class BLPopCommand(Command):
             return None
 
         queue_manager = store._blocking_queue_manager
-
-        # Create a future that will be set when we get a notification
         loop = asyncio.get_running_loop()
         future = loop.create_future()
+        event = asyncio.Event()
+        result = None
 
-        # Define a notification handler
+        async def try_pop_after_notification():
+            nonlocal result
+            try:
+                # Wait for notification that data is available
+                await event.wait()
+
+                # Try to pop the value once after notification
+                for key in keys:
+                    if key in store.key_types and store.key_types[key] == "list":
+                        value = store.lpop(key)
+                        if value is not None and value != -1:
+                            result = [key, str(value)]
+                            if not future.done():
+                                future.set_result(True)
+                            return
+
+                # If we get here, no value was found after notification
+                if not future.done():
+                    future.set_result(False)
+
+            except Exception as e:
+                if not future.done():
+                    future.set_exception(e)
+
+        # Define notification handler
         def on_notify(k: str, v: str):
-            if not future.done():
-                future.set_result((k, v))
+            if not event.is_set():
+                event.set()
+
+        # Start the background task
+        task = asyncio.create_task(try_pop_after_notification())
 
         # Register notification handlers for all keys
         for key in keys:
@@ -108,40 +148,34 @@ class BLPopCommand(Command):
         try:
             # Wait for either the future to complete or the timeout to expire
             if timeout > 0:
-                key, value = await asyncio.wait_for(future, timeout=timeout)
+                await asyncio.wait_for(future, timeout=timeout)
             else:
-                key, value = await future
+                await future
 
-            # After notification, try to pop the value
-            if key is not None and value is not None:
-                # Small delay to allow the value to be set
-                await asyncio.sleep(0.01)
-                result = await self._try_pop(
-                    store, [key]
-                )  # Only try the key that was notified
-                if result is not None:
-                    return result
-
-            # If we got here, either the future completed with None or the pop failed
-            return None
+            return result
 
         except asyncio.TimeoutError:
             return None
 
         except asyncio.CancelledError:
-            # If the task is cancelled, make sure to clean up
             if not future.done():
                 future.cancel()
             raise
 
         finally:
-            # Clean up notification handlers
-            for key in keys:
-                await queue_manager.remove_notification_handler(key, on_notify)
+            # Clean up
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
 
-            # Cancel the future if it's still pending
-            if not future.done():
-                future.cancel()
+            for key in keys:
+                try:
+                    await queue_manager.remove_notification_handler(key, on_notify)
+                except Exception:
+                    pass
 
     async def execute(self, *args: Any, **kwargs: Any) -> Union[bytes, None]:
         """Executes the BLPOP command.
@@ -191,7 +225,8 @@ class BLPopCommand(Command):
         result = await self._try_pop(store, keys)
         print(f"BLPOP try_pop result: {result}")
         if result is not None:
-            return result
+            # Return as a list with key and value as strings
+            return result  # Already in [key, value] string format
 
         # If timeout is 0, just return None immediately
         if timeout == 0:
@@ -202,6 +237,8 @@ class BLPopCommand(Command):
         print("BLPOP waiting for element...")
         result = await self._wait_for_element(store, keys, timeout)
         print(f"BLPOP after wait_for_element: {result}")
+
+        # Return the result as is (already in [key, value] string format)
         return result
 
     async def _wait_for_blocking_pop(
