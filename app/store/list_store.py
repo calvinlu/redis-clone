@@ -44,9 +44,7 @@ class ListStore(BaseStore):
             result = len(self.lists[key])
 
             # Notify any waiting clients if we have a queue manager
-            if (
-                self.queue_manager and result == 1
-            ):  # Only notify on transition from empty
+            if self.queue_manager:
                 try:
                     # Try to get the running event loop
                     loop = asyncio.get_running_loop()
@@ -77,9 +75,7 @@ class ListStore(BaseStore):
             result = len(self.lists[key])
 
             # Notify any waiting clients if we have a queue manager
-            if (
-                self.queue_manager and result == 1
-            ):  # Only notify on transition from empty
+            if self.queue_manager:
                 try:
                     # Try to get the running event loop
                     loop = asyncio.get_running_loop()

@@ -29,9 +29,11 @@ class BLPopCommand(Command):
         try:
             timeout = float(args[-1])
             if timeout < 0:
-                raise ValueError("timeout can't be negative")
+                raise ValueError("timeout is negative")
         except (ValueError, TypeError) as e:
-            raise ValueError("timeout is not a valid float") from e
+            if "negative" in str(e).lower():
+                raise ValueError("timeout is negative") from e
+            raise ValueError("timeout is not a float") from e
 
     def _is_list_key(self, store, key: str) -> bool:
         """Check if a key exists and is a list."""
@@ -60,9 +62,86 @@ class BLPopCommand(Command):
 
             # Try to pop from the left
             value = store.lpop(key)
-            if value is not None:
-                return [key, value]
+
+            # Check if we got a valid value
+            if (
+                value is not None and value != -1
+            ):  # -1 means key doesn't exist or list is empty
+                # Convert the value to a string if it's not already
+                str_value = str(value)
+                if str_value:  # Make sure it's not an empty string
+                    return [key, str_value]
+
         return None
+
+    async def _wait_for_element(
+        self, store, keys: List[str], timeout: float
+    ) -> Optional[List[str]]:
+        """Wait for an element to be available in any of the given lists.
+
+        Args:
+            store: The store instance
+            keys: List of keys to wait on
+            timeout: Maximum time to wait in seconds (0 for no timeout)
+
+        Returns:
+            [key, value] if an element became available, None on timeout
+        """
+        if not hasattr(store, "_blocking_queue_manager"):
+            return None
+
+        queue_manager = store._blocking_queue_manager
+
+        # Create a future that will be set when we get a notification
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+
+        # Define a notification handler
+        def on_notify(k: str, v: str):
+            if not future.done():
+                future.set_result((k, v))
+
+        # Register notification handlers for all keys
+        for key in keys:
+            await queue_manager.add_notification_handler(key, on_notify)
+
+        try:
+            # Wait for either the future to complete or the timeout to expire
+            if timeout > 0:
+                key, value = await asyncio.wait_for(future, timeout=timeout)
+            else:
+                key, value = await future
+
+            # After notification, try to pop the value
+            if key is not None and value is not None:
+                # Small delay to allow the value to be set
+                await asyncio.sleep(0.01)
+                result = await self._try_pop(
+                    store, [key]
+                )  # Only try the key that was notified
+                if result is not None:
+                    return result
+
+            # If we got here, either the future completed with None or the pop failed
+            return None
+
+        except asyncio.TimeoutError:
+            return None
+
+        except asyncio.CancelledError:
+            # If the task is cancelled, make sure to clean up
+            if not future.done():
+                future.cancel()
+            raise
+
+        finally:
+            # Clean up notification handlers
+            for key in keys:
+                await queue_manager.remove_notification_handler(key, on_notify)
+
+            # Cancel the future if it's still pending
+            if not future.done():
+                future.cancel()
 
     async def execute(self, *args: Any, **kwargs: Any) -> Union[bytes, None]:
         """Executes the BLPOP command.
@@ -82,102 +161,57 @@ class BLPopCommand(Command):
             ValueError: If arguments are invalid or store is not provided
             TypeError: If any key exists but is not a list
         """
+        print(f"BLPOP execute called with args: {args}, kwargs: {kwargs}")
         self._validate_arguments(args, kwargs)
         store = kwargs["store"]
         timeout = float(args[-1])
         keys = list(args[:-1])
+        print(f"BLPOP keys: {keys}, timeout: {timeout}")
 
         # Check for wrong type errors first
         self._check_wrong_type(store, keys)
 
+        # If there are no lists to wait on, return None immediately
+        has_lists = any(
+            key in store.key_types and store.key_types[key] == "list" for key in keys
+        )
+        print(f"BLPOP has_lists: {has_lists}")
+        if not has_lists:
+            # If timeout is 0, don't wait at all
+            if timeout == 0:
+                print("BLPOP no lists and timeout=0, returning None")
+                return None
+            # Otherwise, wait for a list to be created
+            print("BLPOP waiting for list to be created...")
+            result = await self._wait_for_element(store, keys, timeout)
+            print(f"BLPOP after wait_for_element: {result}")
+            return result
+
         # Try non-blocking pop first
         result = await self._try_pop(store, keys)
+        print(f"BLPOP try_pop result: {result}")
         if result is not None:
             return result
 
-        # If timeout is 0, we should block indefinitely
-        # Use a short timeout and loop to allow for proper cancellation
+        # If timeout is 0, just return None immediately
         if timeout == 0:
-            timeout = 0.1  # Short timeout for responsiveness
-
-        # Otherwise, wait for data with timeout
-        try:
-            # Use a shorter sleep interval for more responsive behavior
-            sleep_interval = 0.01  # 10ms
-            total_waited = 0.0
-
-            while True:
-                # Try to pop an element
-                result = await self._try_pop(store, keys)
-                if result is not None:
-                    return result
-
-                # Check if we've exceeded the timeout
-                if timeout > 0 and total_waited >= timeout:
-                    return None
-
-                # Small sleep to prevent busy waiting
-                await asyncio.sleep(sleep_interval)
-                if timeout > 0:  # Only increment if we have a timeout
-                    total_waited += sleep_interval
-
-        except asyncio.CancelledError:
+            print("BLPOP timeout=0, returning None")
             return None
 
-    def _validate_arguments(self, args: tuple, kwargs: dict) -> None:
-        """Validate BLPOP command arguments."""
-        if len(args) < 2:
-            raise ValueError("wrong number of arguments for 'blpop' command")
-        if "store" not in kwargs:
-            raise ValueError("store not provided in kwargs")
-        try:
-            timeout = float(args[-1])
-            if timeout < 0:
-                raise ValueError("timeout is negative")
-        except (ValueError, TypeError) as e:
-            if "could not convert" in str(e).lower():
-                raise ValueError("timeout is not a float or out of range") from e
-            raise
-
-    async def _try_non_blocking_pop(
-        self, store: Any, keys: List[str]
-    ) -> Optional[List[str]]:
-        """Attempt to pop an element from any of the given lists without blocking.
-
-        Returns:
-            [key, value] if an element was popped, None otherwise
-        """
-        for key in keys:
-            if key in store.key_types and store.key_types[key] != "list":
-                raise TypeError(
-                    f"WRONGTYPE Operation against a key holding the wrong kind of value: {key}"
-                )
-
-            list_store = store.get_list_store()
-            value = list_store.lpop(key)
-            if value is not None:
-                return [key, value]
-        return None
+        # Wait for an element to become available
+        print("BLPOP waiting for element...")
+        result = await self._wait_for_element(store, keys, timeout)
+        print(f"BLPOP after wait_for_element: {result}")
+        return result
 
     async def _wait_for_blocking_pop(
         self, store: Any, keys: List[str], timeout: float
     ) -> Optional[List[str]]:
         """Wait for data to become available in any of the given lists.
 
-        Args:
-            store: The data store instance
-            keys: List of keys to wait on
-            timeout: Maximum time to wait in seconds
-
-        Returns:
-            [key, value] if data was received, None on timeout
+        This is an alias for _wait_for_element for backward compatibility.
         """
-        list_store = store.get_list_store()
-        key, value = await list_store.queue_manager.wait_for_push(keys, timeout)
-        if key is None or value is None:
-            return None
-        # Remove the item from the list
-        list_store.lpop(key)
+        return await self._wait_for_element(store, keys, timeout)
         return [key, value]
 
 

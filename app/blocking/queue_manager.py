@@ -43,10 +43,13 @@ class BlockingQueueManager:
         # Maps keys to sets of waiting operations
         self.waiting_operations: Dict[str, Set[BlockingOperation]] = defaultdict(set)
 
+        # Maps keys to sets of notification handlers
+        self.notification_handlers: Dict[str, Set[callable]] = defaultdict(set)
+
         # Track all active operations for cleanup
         self.active_operations: Set[BlockingOperation] = set()
 
-        # Lock for thread-safe operations
+        # Create a lock that supports the context manager protocol
         self._lock = asyncio.Lock()
 
     async def wait_for_push(
@@ -61,6 +64,9 @@ class BlockingQueueManager:
         Returns:
             A tuple of (key, value) if data becomes available, or (None, None) on timeout
         """
+        if not keys:
+            return None, None
+
         loop = asyncio.get_running_loop()
         future = loop.create_future()
         operation = BlockingOperation(
@@ -70,65 +76,140 @@ class BlockingQueueManager:
             future=future,
         )
 
+        # If timeout is 0, don't wait
+        if timeout == 0:
+            return None, None
+
+        # Store the start time for timeout calculation
+        start_time = loop.time()
+
         async with self._lock:
             for key in keys:
                 self.waiting_operations[key].add(operation)
             self.active_operations.add(operation)
 
         try:
-            # Set up timeout if needed
+            # Wait for the future to complete (set by _notify_operation)
             if timeout > 0:
-                await asyncio.wait_for(operation.event.wait(), timeout=timeout)
+                result = await asyncio.wait_for(future, timeout=timeout)
             else:
-                await operation.event.wait()
+                result = await future
 
-            if operation.event.is_set():
-                return future.result()
-            return None, None
+            return result if result is not None else (None, None)
 
         except asyncio.TimeoutError:
             return None, None
 
+        except asyncio.CancelledError:
+            # If the operation is cancelled, clean up and re-raise
+            if not future.done():
+                future.cancel()
+            raise
+
         finally:
             await self._cleanup_operation(operation, keys)
 
+    async def add_notification_handler(self, key: str, handler: callable) -> None:
+        """Add a notification handler for a key.
+
+        Args:
+            key: The key to listen for notifications on
+            handler: A callable that takes (key, value) as arguments
+        """
+        async with self._lock:
+            self.notification_handlers[key].add(handler)
+
+    async def remove_notification_handler(self, key: str, handler: callable) -> None:
+        """Remove a notification handler for a key.
+
+        Args:
+            key: The key to stop listening for notifications on
+            handler: The handler to remove
+        """
+        async with self._lock:
+            if key in self.notification_handlers:
+                self.notification_handlers[key].discard(handler)
+                if not self.notification_handlers[key]:
+                    del self.notification_handlers[key]
+
+    async def _call_handler(self, handler: callable, key: str, value: str) -> None:
+        """Call a notification handler with error handling."""
+        try:
+            handler(key, value)
+        except Exception as e:
+            print(f"Error in notification handler: {e}")
+
     async def notify_push(self, key: str, value: str) -> bool:
-        """Notify any clients waiting on this key that data is available.
+        """Notify one client waiting on this key that data is available.
 
         Args:
             key: The key that received new data
             value: The value that was pushed
 
         Returns:
-            bool: True if any clients were notified, False otherwise
+            bool: True if a client was notified, False otherwise
         """
+        # First, try to find a waiting operation to notify
         async with self._lock:
-            if key not in self.waiting_operations:
-                return False
+            if key in self.waiting_operations and self.waiting_operations[key]:
+                # Find the first operation that's still waiting
+                for operation in list(self.waiting_operations[key]):
+                    if not operation.event.is_set() and not operation.future.done():
+                        # Remove the operation from the waiting list
+                        self.waiting_operations[key].remove(operation)
+                        if not self.waiting_operations[key]:
+                            del self.waiting_operations[key]
 
-            # Get the first waiting operation (FIFO)
-            operations = list(self.waiting_operations[key])
-            if not operations:
-                return False
+                        # Schedule the notification
+                        asyncio.create_task(
+                            self._notify_operation(operation, key, value)
+                        )
+                        return True
 
-            # Notify the first waiting client
-            operation = operations[0]
-            operation.future.set_result((key, value))
-            operation.event.set()
+            # If no waiting operations, notify one notification handler
+            if key in self.notification_handlers and self.notification_handlers[key]:
+                # Get one handler
+                handler = next(iter(self.notification_handlers[key]), None)
+                if handler:
+                    # Remove the handler so it's only called once
+                    self.notification_handlers[key].remove(handler)
+                    if not self.notification_handlers[key]:
+                        del self.notification_handlers[key]
 
-            return True
+                    # Schedule the handler to be called
+                    asyncio.create_task(self._call_handler(handler, key, value))
+                    return True
+
+        return False
+
+    async def _notify_operation(
+        self, operation: BlockingOperation, key: str, value: str
+    ) -> None:
+        """Notify a single operation that data is available."""
+        try:
+            if not operation.future.done():
+                operation.future.set_result((key, value))
+                operation.event.set()
+        except Exception as e:
+            print(f"Error notifying operation: {e}")
+            # If there was an error, ensure the future is set to avoid hanging
+            if not operation.future.done():
+                operation.future.set_result((None, None))
 
     async def _cleanup_operation(
         self, operation: BlockingOperation, keys: List[str]
     ) -> None:
         """Clean up a completed or timed out operation."""
         async with self._lock:
-            for key in keys:
+            # Remove operation from all keys it was waiting on
+            for key in list(self.waiting_operations.keys()):
                 if operation in self.waiting_operations[key]:
                     self.waiting_operations[key].remove(operation)
-                    if not self.waiting_operations[key]:
-                        del self.waiting_operations[key]
+                # Remove empty key sets
+                if not self.waiting_operations[key]:
+                    del self.waiting_operations[key]
 
+            # Remove from active operations
             if operation in self.active_operations:
                 self.active_operations.remove(operation)
 

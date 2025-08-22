@@ -314,3 +314,14 @@ class Store:
             store.flushdb()
         self.key_types.clear()
         return True
+
+    def type(self, key: str) -> str:
+        """Gets the type for the given key.
+
+        Args:
+            key: The key to lookup the type.
+
+        Returns:
+            str: Gets the type for the given key.
+        """
+        return self.key_types.get(key)
