@@ -33,7 +33,7 @@ class TypeCommand(Command):
         """
         if len(args) != 1:
             raise ValueError("ERR wrong number of arguments for 'type' command")
-        return store.get()
+        return store.type(args[0])
 
 
 command = TypeCommand()
