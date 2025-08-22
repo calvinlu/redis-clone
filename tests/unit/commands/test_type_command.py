@@ -17,9 +17,10 @@ class TestTypeCommand:
 
     @pytest.fixture
     def mock_store(self):
-        """Create a mock store instance with a type method."""
+        """Create a mock store instance with key_types dictionary."""
         store = MagicMock(spec=Store)
-        store.type.return_value = "none"
+        store.key_types = MagicMock()
+        store.key_types.get.return_value = "none"
         return store
 
     @pytest.mark.asyncio
@@ -31,22 +32,22 @@ class TestTypeCommand:
     async def test_execute_returns_type_for_key(self, command, mock_store):
         """Test that execute returns the type for an existing key."""
         # Setup mock to return a type for the key
-        mock_store.type.return_value = "string"
+        mock_store.key_types.get.return_value = "string"
 
         result = await command.execute("test_key", store=mock_store)
 
-        mock_store.type.assert_called_once_with("test_key")
+        mock_store.key_types.get.assert_called_once_with("test_key", "none")
         assert result == "string"
 
     @pytest.mark.asyncio
     async def test_execute_returns_none_for_non_existing_key(self, command, mock_store):
         """Test that execute returns 'none' for a non-existing key."""
         # Setup mock to return 'none' for non-existing key
-        mock_store.type.return_value = "none"
+        mock_store.key_types.get.return_value = "none"
 
         result = await command.execute("non_existing_key", store=mock_store)
 
-        mock_store.type.assert_called_once_with("non_existing_key")
+        mock_store.key_types.get.assert_called_once_with("non_existing_key", "none")
         assert result == "none"
 
     @pytest.mark.asyncio

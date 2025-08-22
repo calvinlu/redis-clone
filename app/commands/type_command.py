@@ -35,7 +35,7 @@ class TypeCommand(Command):
             raise ValueError("ERR wrong number of arguments for 'type' command")
 
         # Get the type from store (will be one of: "string", "list", "none")
-        return store.type(args[0])
+        return store.key_types.get(args[0], "none")
 
 
 command = TypeCommand()

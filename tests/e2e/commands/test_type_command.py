@@ -11,7 +11,7 @@ class TestTypeCommandE2E(BaseE2ETest):
     async def test_type_command_returns_none_for_non_existing_key(self):
         """Test that TYPE returns 'none' for non-existing keys."""
         result = await self._test_client.execute_command("TYPE", "nonexistent_key")
-        assert result == b"none"
+        assert result == "none"
 
     @pytest.mark.asyncio
     async def test_type_command_returns_type_for_existing_key(self):
@@ -19,12 +19,12 @@ class TestTypeCommandE2E(BaseE2ETest):
         # Test string type
         await self._test_client.set("str_key", "value")
         result = await self._test_client.execute_command("TYPE", "str_key")
-        assert result == b"string"
+        assert result == "string"
 
         # Test list type
         await self._test_client.lpush("list_key", "value1", "value2")
         result = await self._test_client.execute_command("TYPE", "list_key")
-        assert result == b"list"
+        assert result == "list"
 
     @pytest.mark.asyncio
     async def test_type_command_with_multiple_keys(self):
@@ -34,9 +34,9 @@ class TestTypeCommandE2E(BaseE2ETest):
         await self._test_client.lpush("key2", "item1", "item2")
 
         # Test each key's type
-        assert await self._test_client.execute_command("TYPE", "key1") == b"string"
-        assert await self._test_client.execute_command("TYPE", "key2") == b"list"
-        assert await self._test_client.execute_command("TYPE", "nonexistent") == b"none"
+        assert await self._test_client.execute_command("TYPE", "key1") == "string"
+        assert await self._test_client.execute_command("TYPE", "key2") == "list"
+        assert await self._test_client.execute_command("TYPE", "nonexistent") == "none"
 
     @pytest.mark.asyncio
     async def test_type_command_error_cases(self):

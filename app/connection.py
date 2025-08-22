@@ -20,6 +20,7 @@ from app.commands.list.rpush_command import command as rpush_command
 from app.commands.ping_command import command as ping_command
 from app.commands.string.get_command import command as get_command
 from app.commands.string.set_command import command as set_command
+from app.commands.type_command import command as type_command
 from app.parser.parser import RESP2Parser
 from app.resp2 import format_error, format_response
 from app.store import Store
@@ -48,6 +49,7 @@ def create_dispatcher(store: Store) -> CommandDispatcher:
     dispatcher.register(llen_command)
     dispatcher.register(lpop_command)
     dispatcher.register(blpop_command)
+    dispatcher.register(type_command)
 
     return dispatcher
 
