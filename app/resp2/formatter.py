@@ -44,12 +44,13 @@ def format_response(response: RESPValue) -> bytes:
           converted to a bulk string if it's a string.
         - None is encoded as a null bulk string ('$-1\r\n').
     """
-    if response is None:
-        return b"$-1\r\n"  # Null bulk string
-
+    # Handle NullArray before checking for None
     if isinstance(response, NullArray):
         # For BLPOP, we need to return a null array (*-1\r\n) not a null bulk string
         return b"*-1\r\n"  # Null array in RESP2
+
+    if response is None:
+        return b"$-1\r\n"  # Null bulk string
 
     if isinstance(response, str):
         # Simple string
