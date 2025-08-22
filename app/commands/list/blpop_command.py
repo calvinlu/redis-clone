@@ -3,6 +3,7 @@ import asyncio
 from typing import Any, List, Optional, Union
 
 from app.commands.base_command import Command
+from app.parser.parser import NullArray
 
 
 class BLPopCommand(Command):
@@ -186,7 +187,7 @@ class BLPopCommand(Command):
                 except Exception:
                     pass
 
-    async def execute(self, *args: Any, **kwargs: Any) -> Union[bytes, None]:
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
         """Executes the BLPOP command.
 
         Args:
@@ -214,7 +215,7 @@ class BLPopCommand(Command):
         # Check for wrong type errors first
         self._check_wrong_type(store, keys)
 
-        # If there are no lists to wait on, return None immediately
+        # If there are no lists to wait on, return None (will be serialized as null array)
         has_lists = any(
             key in store.key_types and store.key_types[key] == "list" for key in keys
         )
@@ -222,13 +223,15 @@ class BLPopCommand(Command):
         if not has_lists:
             # If timeout is 0, don't wait at all
             if timeout == 0:
-                print("BLPOP no lists and timeout=0, returning None")
-                return None
+                print("BLPOP no lists and timeout=0, returning null array")
+                return NullArray()  # Will be serialized as *-1\r\n
             # Otherwise, wait for a list to be created
             print("BLPOP waiting for list to be created...")
             result = await self._wait_for_element(store, keys, timeout)
             print(f"BLPOP after wait_for_element: {result}")
-            return result
+            return (
+                result if result is not None else NullArray()
+            )  # Return NullArray if no element was received
 
         # Try non-blocking pop first
         result = await self._try_pop(store, keys)
@@ -237,18 +240,18 @@ class BLPopCommand(Command):
             # Return as a list with key and value as strings
             return result  # Already in [key, value] string format
 
-        # If timeout is 0, just return None immediately
+        # If timeout is 0, just return NullArray
         if timeout == 0:
-            print("BLPOP timeout=0, returning None")
-            return None
+            print("BLPOP timeout=0, returning null array")
+            return NullArray()  # Will be serialized as *-1\r\n
 
         # Wait for an element to become available
         print("BLPOP waiting for element...")
         result = await self._wait_for_element(store, keys, timeout)
         print(f"BLPOP after wait_for_element: {result}")
 
-        # Return the result as is (already in [key, value] string format)
-        return result
+        # Return the result or NullArray if no element was received
+        return result if result is not None else NullArray()
 
     async def _wait_for_blocking_pop(
         self, store: Any, keys: List[str], timeout: float
@@ -258,7 +261,6 @@ class BLPopCommand(Command):
         This is an alias for _wait_for_element for backward compatibility.
         """
         return await self._wait_for_element(store, keys, timeout)
-        return [key, value]
 
 
 # Create a singleton instance of the command
