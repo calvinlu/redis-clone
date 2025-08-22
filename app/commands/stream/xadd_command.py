@@ -1,5 +1,5 @@
 """Implementation of the Redis XADD command for adding entries to a stream."""
-from typing import Any, Dict
+from typing import Any
 
 from app.commands.base_command import Command
 from app.store import Store
