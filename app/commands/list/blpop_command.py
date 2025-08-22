@@ -214,7 +214,7 @@ class BLPopCommand(Command):
         # Check for wrong type errors first
         self._check_wrong_type(store, keys)
 
-        # If there are no lists to wait on, return None immediately
+        # If there are no lists to wait on, return None (will be serialized as null array)
         has_lists = any(
             key in store.key_types and store.key_types[key] == "list" for key in keys
         )
@@ -222,13 +222,13 @@ class BLPopCommand(Command):
         if not has_lists:
             # If timeout is 0, don't wait at all
             if timeout == 0:
-                print("BLPOP no lists and timeout=0, returning None")
+                print("BLPOP no lists and timeout=0, returning None (null array)")
                 return None
             # Otherwise, wait for a list to be created
             print("BLPOP waiting for list to be created...")
             result = await self._wait_for_element(store, keys, timeout)
             print(f"BLPOP after wait_for_element: {result}")
-            return result
+            return result  # Return None if no element was received
 
         # Try non-blocking pop first
         result = await self._try_pop(store, keys)
@@ -237,9 +237,9 @@ class BLPopCommand(Command):
             # Return as a list with key and value as strings
             return result  # Already in [key, value] string format
 
-        # If timeout is 0, just return None immediately
+        # If timeout is 0, just return None (will be serialized as null array)
         if timeout == 0:
-            print("BLPOP timeout=0, returning None")
+            print("BLPOP timeout=0, returning None (null array)")
             return None
 
         # Wait for an element to become available
@@ -247,7 +247,7 @@ class BLPopCommand(Command):
         result = await self._wait_for_element(store, keys, timeout)
         print(f"BLPOP after wait_for_element: {result}")
 
-        # Return the result as is (already in [key, value] string format)
+        # Return the result or None if no element was received (will be serialized as null bulk string)
         return result
 
     async def _wait_for_blocking_pop(
@@ -258,7 +258,6 @@ class BLPopCommand(Command):
         This is an alias for _wait_for_element for backward compatibility.
         """
         return await self._wait_for_element(store, keys, timeout)
-        return [key, value]
 
 
 # Create a singleton instance of the command
