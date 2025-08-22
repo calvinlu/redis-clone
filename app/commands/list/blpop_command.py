@@ -165,7 +165,9 @@ class BLPopCommand(Command):
         """
         return await self._wait_for_element(store, keys, timeout)
 
-    async def execute(self, *args: Any, **kwargs: Any) -> Optional[List[str]]:
+    async def execute(
+        self, *args: Any, **kwargs: Any
+    ) -> Union[List[str], NullArray, Error]:
         """Executes the BLPOP command.
 
         Args:
@@ -177,57 +179,57 @@ class BLPopCommand(Command):
 
         Returns:
             - If an element was popped: [key, value]
-            - If timeout was reached or no element was found: None
+            - If timeout was reached or no element was found: NullArray
 
         Raises:
             ValueError: If arguments are invalid or store is not provided
             TypeError: If any key exists but is not a list
         """
-        print(f"BLPOP execute called with args: {args}, kwargs: {kwargs}")
-        self._validate_arguments(args, kwargs)
-        store = kwargs["store"]
-        keys = list(args[:-1])  # All args except the last one are keys
-        timeout = float(args[-1])  # Last arg is the timeout
+        try:
+            print(f"BLPOP execute called with args: {args}, kwargs: {kwargs}")
+            self._validate_arguments(args, kwargs)
+            store = kwargs["store"]
+            keys = list(args[:-1])  # All args except the last one are keys
+            timeout = float(args[-1])  # Last arg is the timeout
 
-        print(f"BLPOP keys: {keys}, timeout: {timeout}")
+            print(f"BLPOP keys: {keys}, timeout: {timeout}")
 
-        # Check for wrong type before proceeding
-        self._check_wrong_type(store, keys)
+            # Check for wrong type before proceeding
+            self._check_wrong_type(store, keys)
 
-        # If there are no lists to wait on, return None (will be serialized as null array)
-        has_lists = any(
-            key in store.key_types and store.key_types[key] == "list" for key in keys
-        )
-        print(f"BLPOP has_lists: {has_lists}")
-        if not has_lists:
-            # If timeout is 0, don't wait at all
-            if timeout == 0:
-                print("BLPOP no lists and timeout=0, returning NullArray")
-                return NullArray()
-            # Otherwise, wait for a list to be created
-            print("BLPOP waiting for list to be created...")
-            result = await self._wait_for_element(store, keys, timeout)
-            print(f"BLPOP after wait_for_element: {result}")
-            return result  # Return None if no element was received
+            # Check if any keys exist and are lists
+            has_lists = any(
+                key in store.key_types and store.key_types[key] == "list"
+                for key in keys
+            )
 
-        # Try non-blocking pop first
-        result = await self._try_pop(store, keys)
-        print(f"BLPOP try_pop result: {result}")
-        if result is not None:
-            # Return as a list with key and value as strings
-            return result  # Already in [key, value] string format
+            print(f"BLPOP has_lists: {has_lists}")
+            if not has_lists:
+                # If timeout is 0, don't wait at all
+                if timeout == 0:
+                    print("BLPOP no lists and timeout=0, returning NullArray")
+                    return NullArray()
+                # Otherwise, wait for a list to be created
+                print("BLPOP waiting for list to be created...")
+                result = await self._wait_for_element(store, keys, timeout)
+                print(f"BLPOP after wait_for_element: {result}")
+                return result
 
-        # If timeout is 0, just return NullArray (will be serialized as null array)
-        if timeout == 0:
-            print("BLPOP timeout=0, returning NullArray")
+            # If we have lists, try to pop immediately
+            result = await self._try_pop(store, keys)
+            if not isinstance(result, NullArray):
+                return result
+
+            # If we have lists but they're empty, wait for an element
+            if timeout > 0:
+                result = await self._wait_for_element(store, keys, timeout)
+                return result if not isinstance(result, NullArray) else NullArray()
+
             return NullArray()
 
-        # Wait for an element to become available
-        print("BLPOP waiting for element...")
-        result = await self._wait_for_element(store, keys, timeout)
-        print(f"BLPOP after wait_for_element: {result}")
-
-        # Return the result or NullArray if no element was received (will be serialized as null array)
+        except Exception as e:
+            print(f"BLPOP error: {e}")
+            return NullArray()
         return result if result is not None else NullArray()
 
     async def _wait_for_blocking_pop(
