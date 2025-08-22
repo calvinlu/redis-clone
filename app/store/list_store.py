@@ -1,10 +1,9 @@
 """List store implementation for Redis-like list operations."""
 import asyncio
 from collections import deque
-from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Union
+from typing import Deque, Dict, List, Optional, Union
 
-if TYPE_CHECKING:
-    from app.blocking.queue_manager import BlockingQueueManager
+from app.blocking.queue_manager import BlockingQueueManager
 
 from .base import BaseStore
 
@@ -12,7 +11,7 @@ from .base import BaseStore
 class ListStore(BaseStore):
     """Handles storage of list values."""
 
-    def __init__(self, queue_manager: Optional["BlockingQueueManager"] = None):
+    def __init__(self, queue_manager: Optional[BlockingQueueManager] = None):
         """Initialize a new ListStore.
 
         Args:
