@@ -167,7 +167,7 @@ class BLPopCommand(Command):
 
     async def execute(
         self, *args: Any, **kwargs: Any
-    ) -> Union[List[str], NullArray, Error]:
+    ) -> Union[List[str], NullArray, str, None]:
         """Executes the BLPOP command.
 
         Args:
