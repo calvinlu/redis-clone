@@ -29,11 +29,14 @@ class TypeCommand(Command):
             store: The store instance to use for storage.
 
         Returns:
-            str: The type of the given key. Returns "none" if key doesn't exist.
+            str: The type of the given key as a simple string (e.g., "+string\r\n")
         """
         if len(args) != 1:
             raise ValueError("ERR wrong number of arguments for 'type' command")
-        return store.get()
+
+        # Get the type from store and ensure it's a simple string response
+        key_type = store.type(args[0])
+        return f"+{key_type}\r\n"
 
 
 command = TypeCommand()

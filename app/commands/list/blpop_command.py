@@ -103,6 +103,15 @@ class BLPopCommand(Command):
         if not hasattr(store, "_blocking_queue_manager"):
             return None
 
+        # First, try a non-blocking pop to see if data is already available
+        result = await self._try_pop(store, keys)
+        if result is not None:
+            return result
+
+        # If timeout is 0, return None immediately
+        if timeout == 0:
+            return None
+
         queue_manager = store._blocking_queue_manager
         loop = asyncio.get_running_loop()
         future = loop.create_future()
@@ -115,7 +124,7 @@ class BLPopCommand(Command):
                 # Wait for notification that data is available
                 await event.wait()
 
-                # Try to pop the value once after notification
+                # After notification, try to get a value from any of the keys
                 for key in keys:
                     if key in store.key_types and store.key_types[key] == "list":
                         value = store.lpop(key)

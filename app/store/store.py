@@ -99,9 +99,25 @@ class Store:
         """Get the list store instance.
 
         Returns:
-            ListStore: The list store instance
+            The ListStore instance
         """
         return self._get_or_create_store("list")
+
+    def type(self, key: str) -> str:
+        """Get the type of the value stored at key.
+
+        Args:
+            key: The key to check
+
+        Returns:
+            str: The type of the value, one of:
+                - "string" for string values
+                - "list" for list values
+                - "none" if the key doesn't exist
+        """
+        if key not in self.key_types:
+            return "none"
+        return self.key_types[key]
 
     def _on_key_deleted(self, key: str) -> None:
         """Callback when a key is deleted from a store.
