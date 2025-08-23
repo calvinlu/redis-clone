@@ -44,7 +44,10 @@ class TestStreamStore:
 
         with pytest.raises(ValueError) as exc_info:
             store.xadd("mystream", "1-0", f2="v2")
-        assert "equal or smaller" in str(exc_info.value).lower()
+        assert (
+            str(exc_info.value)
+            == "ERR The ID specified in XADD is equal or smaller than the target stream top item"
+        )
 
     def test_xadd_smaller_timestamp(self, store):
         """Test adding an entry with a smaller timestamp."""
@@ -52,7 +55,10 @@ class TestStreamStore:
 
         with pytest.raises(ValueError) as exc_info:
             store.xadd("mystream", "1-0", f2="v2")
-        assert "equal or smaller" in str(exc_info.value).lower()
+        assert (
+            str(exc_info.value)
+            == "ERR The ID specified in XADD is equal or smaller than the target stream top item"
+        )
 
     def test_xadd_same_timestamp_smaller_sequence(self, store):
         """Test adding an entry with the same timestamp but smaller sequence number."""
@@ -60,7 +66,10 @@ class TestStreamStore:
 
         with pytest.raises(ValueError) as exc_info:
             store.xadd("mystream", "1-0", f2="v2")
-        assert "equal or smaller" in str(exc_info.value).lower()
+        assert (
+            str(exc_info.value)
+            == "ERR The ID specified in XADD is equal or smaller than the target stream top item"
+        )
 
     def test_xadd_large_numbers(self, store):
         """Test adding entries with very large numbers in IDs."""
