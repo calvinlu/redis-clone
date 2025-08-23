@@ -9,7 +9,8 @@ The stream data is stored in memory using a dictionary where each key maps to a
 list of entries. Each entry is a dictionary containing an 'id' field and the
 provided field-value pairs.
 """
-from typing import Any, Dict, List
+import re
+from typing import Any, Dict, List, Tuple
 
 from .base import BaseStore
 
@@ -25,22 +26,100 @@ class StreamStore(BaseStore):
         """Return the type name of this store."""
         return "stream"
 
+    def _parse_entry_id(self, entry_id: str) -> Tuple[int, int]:
+        """Parse and validate a stream entry ID.
+
+        Args:
+            entry_id: The entry ID string in format "TIMESTAMP-SEQUENCE"
+
+        Returns:
+            A tuple of (timestamp, sequence) as integers
+
+        Raises:
+            ValueError: If the entry ID is invalid
+        """
+        if not entry_id or not isinstance(entry_id, str):
+            raise ValueError("ERR Invalid stream ID specified")
+
+        # Check format
+        if not re.match(r"^\d+-\d+$", entry_id):
+            raise ValueError("ERR Invalid stream ID specified")
+
+        try:
+            timestamp_str, sequence_str = entry_id.split("-")
+            timestamp = int(timestamp_str)
+            sequence = int(sequence_str)
+        except (ValueError, AttributeError) as e:
+            raise ValueError("ERR Invalid stream ID specified") from e
+
+        # Validate numbers are non-negative and within 64-bit range
+        if timestamp < 0 or sequence < 0:
+            raise ValueError("ERR The ID specified in XADD must be greater than 0-0")
+
+        # Special case: 0-0 is not allowed
+        if timestamp == 0 and sequence == 0:
+            raise ValueError("ERR The ID specified in XADD must be greater than 0-0")
+
+        # Check 64-bit upper bound
+        if timestamp > 2**64 - 1 or sequence > 2**64 - 1:
+            raise ValueError("ERR The ID specified in XADD is not a valid stream ID")
+
+        return timestamp, sequence
+
+    def _validate_entry_id_order(
+        self, key: str, new_timestamp: int, new_sequence: int
+    ) -> None:
+        """Validate that the new entry ID is greater than the last entry's ID.
+
+        Args:
+            key: The stream key
+            new_timestamp: The timestamp of the new entry
+            new_sequence: The sequence number of the new entry
+
+        Raises:
+            ValueError: If the new ID is not greater than the last entry's ID
+        """
+        if key not in self.streams or not self.streams[key]:
+            return
+
+        last_entry = self.streams[key][-1]
+        last_timestamp, last_sequence = self._parse_entry_id(last_entry["id"])
+
+        if new_timestamp < last_timestamp:
+            raise ValueError(
+                "ERR The ID specified in XADD is equal or smaller than the target stream's last item"
+            )
+
+        if new_timestamp == last_timestamp and new_sequence <= last_sequence:
+            raise ValueError(
+                "ERR The ID specified in XADD is equal or smaller than the target stream's last item"
+            )
+
     def xadd(self, key: str, entry_id: str, **field_value_pairs: str) -> str:
         """Add an entry to a stream.
 
         Args:
             key: The stream key
-            entry_id: The ID for the new entry
+            entry_id: The ID for the new entry in format "TIMESTAMP-SEQUENCE"
             **field_value_pairs: Field-value pairs to store in the entry
 
         Returns:
             The entry ID that was added
 
         Raises:
-            ValueError: If no field-value pairs are provided
+            ValueError: If no field-value pairs are provided or if entry_id is invalid
         """
         if not field_value_pairs:
             raise ValueError("ERR wrong number of arguments for 'xadd' command")
+
+        # Parse and validate the entry ID
+        try:
+            timestamp, sequence = self._parse_entry_id(entry_id)
+        except ValueError as e:
+            raise ValueError(str(e)) from e
+
+        # Validate the entry ID is greater than the last entry's ID
+        self._validate_entry_id_order(key, timestamp, sequence)
 
         entry = {"id": entry_id, **field_value_pairs}
 
