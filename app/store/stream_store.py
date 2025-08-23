@@ -87,12 +87,14 @@ class StreamStore(BaseStore):
 
         if new_timestamp < last_timestamp:
             raise ValueError(
-                "ERR The ID specified in XADD is equal or smaller than the target stream's last item"
+                "ERR The ID specified in XADD is equal or \
+                    smaller than the target stream's last item"
             )
 
         if new_timestamp == last_timestamp and new_sequence <= last_sequence:
             raise ValueError(
-                "ERR The ID specified in XADD is equal or smaller than the target stream's last item"
+                "ERR The ID specified in XADD is equal or \
+                    smaller than the target stream's last item"
             )
 
     def xadd(self, key: str, entry_id: str, **field_value_pairs: str) -> str:
