@@ -90,53 +90,64 @@ class TestStreamStore:
         assert entry == {"id": "1-0", "f1": "v1", "f2": "v2", "f3": "v3"}
 
     def test_xadd_auto_sequence_new_stream(self, store):
-        """Test auto-generating sequence number for a new stream."""
-        # First entry with auto-sequence for a new stream
-        entry_id = store.xadd("mystream", "1-*", f1="v1")
-        assert entry_id == "1-0"  # Should start with 0 for new stream
+        """Test auto-sequence with * in a new stream."""
+        # First entry with auto-sequence
+        result = store.xadd("mystream", "1-*", field1="value1")
+        assert result == "1-0"  # Should start with sequence 0
         assert store.streams["mystream"][0]["id"] == "1-0"
 
-    def test_xadd_auto_sequence_increment(self, store):
-        """Test auto-incrementing sequence number for existing timestamp."""
-        # First entry
-        entry_id1 = store.xadd("mystream", "1-*", f1="v1")
-        assert entry_id1 == "1-0"
+        # Second entry with same timestamp, auto-sequence should increment
+        result = store.xadd("mystream", "1-*", field2="value2")
+        assert result == "1-1"
+        assert store.streams["mystream"][1]["id"] == "1-1"
 
-        # Second entry with same timestamp
-        entry_id2 = store.xadd("mystream", "1-*", f2="v2")
-        assert entry_id2 == "1-1"
+    def test_xadd_auto_sequence_timestamp_zero(self, store):
+        """Test auto-sequence with timestamp 0."""
+        # Timestamp 0 should start sequence at 1 (special case)
+        result = store.xadd("mystream", "0-*", field1="value1")
+        assert result == "0-1"
+        assert store.streams["mystream"][0]["id"] == "0-1"
 
-        # Third entry with same timestamp
-        entry_id3 = store.xadd("mystream", "1-*", f3="v3")
-        assert entry_id3 == "1-2"
+        # Next auto-sequence with same timestamp
+        result = store.xadd("mystream", "0-*", field2="value2")
+        assert result == "0-2"
 
-        # Verify all entries were added correctly
-        assert [e["id"] for e in store.streams["mystream"]] == ["1-0", "1-1", "1-2"]
+    def test_xadd_mixed_auto_and_manual_sequence(self, store):
+        """Test mixing auto and manual sequence numbers."""
+        # Add with manual sequence
+        store.xadd("mystream", "1-5", field1="value1")
 
-    def test_xadd_auto_sequence_new_timestamp(self, store):
-        """Test auto-sequence with a new timestamp resets sequence to 0."""
-        # First entry with timestamp 1
+        # Add with auto-sequence, should use next sequence number (6)
+        result = store.xadd("mystream", "1-*", field2="value2")
+        assert result == "1-6"
+
+        # Add with higher timestamp, auto-sequence should reset
+        result = store.xadd("mystream", "2-*", field3="value3")
+        assert result == "2-0"
+
+    def test_xadd_auto_sequence_after_deletion(self, store):
+        """Test auto-sequence works correctly after stream is deleted."""
+        # Add some entries
         store.xadd("mystream", "1-*", f1="v1")
         store.xadd("mystream", "1-*", f2="v2")  # 1-1
 
-        # New timestamp should reset sequence to 0
-        entry_id = store.xadd("mystream", "2-*", f3="v3")
-        assert entry_id == "2-0"
-        assert [e["id"] for e in store.streams["mystream"]] == ["1-0", "1-1", "2-0"]
+        # Delete the stream
+        store.delete("mystream")
 
-    def test_xadd_auto_sequence_zero_timestamp(self, store):
-        """Test auto-sequence with timestamp 0 (special case)."""
-        # With timestamp 0, sequence should start at 1
-        entry_id = store.xadd("mystream", "0-*", f1="v1")
-        assert entry_id == "0-1"  # Special case: sequence starts at 1 for timestamp 0
+        # Add to stream again, should start fresh
+        result = store.xadd("mystream", "2-*", f3="v3")
+        assert result == "2-0"
+        assert len(store.streams["mystream"]) == 1
 
-        # Next entry with same timestamp should increment
-        entry_id2 = store.xadd("mystream", "0-*", f2="v2")
-        assert entry_id2 == "0-2"
+    def test_xadd_auto_sequence_edge_cases(self, store):
+        """Test edge cases for auto-sequence."""
+        # Test with very large timestamp
+        large_ts = str(2**64 - 1)  # Max 64-bit unsigned int
+        result = store.xadd("mystream", f"{large_ts}-*", field="value")
+        assert result == f"{large_ts}-0"
 
-        # New non-zero timestamp should start sequence at 0
-        entry_id3 = store.xadd("mystream", "1-*", f3="v3")
-        assert entry_id3 == "1-0"
-
-        # Verify all entries
-        assert [e["id"] for e in store.streams["mystream"]] == ["0-1", "0-2", "1-0"]
+        # Test sequence number rollover (though in practice, we don't enforce max sequence)
+        store.xadd("mystream", "3-18446744073709551615", f1="v1")  # Max sequence
+        result = store.xadd("mystream", "3-*", f2="v2")
+        # Should increment even if at max, though this would overflow in practice
+        assert result == "3-18446744073709551616"
