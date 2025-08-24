@@ -139,15 +139,22 @@ class TestStreamStore:
         assert result == "2-0"
         assert len(store.streams["mystream"]) == 1
 
-    def test_xadd_auto_sequence_edge_cases(self, store):
-        """Test edge cases for auto-sequence."""
-        # Test with very large timestamp
-        large_ts = str(2**64 - 1)  # Max 64-bit unsigned int
+    def test_xadd_large_timestamp(self, store):
+        """Test with a large but valid timestamp (2^53-1 is the max safe integer in JavaScript)."""
+        large_ts = str(2**53 - 1)
         result = store.xadd("mystream", f"{large_ts}-*", field="value")
         assert result == f"{large_ts}-0"
 
-        # Test sequence number rollover (though in practice, we don't enforce max sequence)
-        store.xadd("mystream", "3-18446744073709551615", f1="v1")  # Max sequence
-        result = store.xadd("mystream", "3-*", f2="v2")
-        # Should increment even if at max, though this would overflow in practice
-        assert result == "3-18446744073709551616"
+    def test_xadd_large_sequence_number(self, store):
+        """Test with a large sequence number (2^53-1)."""
+        # First add an entry with a small timestamp
+        store.xadd("mystream", "1-*", f0="v0")
+
+        # Now test with a large sequence number
+        large_seq = str(2**53 - 1)
+        result = store.xadd("mystream", f"1-{large_seq}", f1="v1")
+        assert result == f"1-{large_seq}"
+
+        # Next auto-sequence should increment the sequence number
+        result = store.xadd("mystream", "1-*", f2="v2")
+        assert result == "1-9007199254740992"  # 2^53

@@ -33,7 +33,7 @@ class StreamStore(BaseStore):
             entry_id: The entry ID string in format "TIMESTAMP-SEQUENCE" or "TIMESTAMP-*"
 
         Returns:
-            A tuple of (timestamp, sequence) as integers
+            A tuple of (timestamp, sequence) as integers. For auto-sequence case, sequence will be -1.
 
         Raises:
             ValueError: If the entry ID is invalid
@@ -41,9 +41,12 @@ class StreamStore(BaseStore):
         if not entry_id or not isinstance(entry_id, str):
             raise ValueError("ERR Invalid stream ID specified")
 
-        # Check format - allow * for sequence number
-        if not re.match(r"^\d+-[\d*]+$", entry_id):
+        # Check format - allow * for sequence number or standalone *
+        if not re.match(r"^\d+-\d+$|^\d+-\*$|^\*$", entry_id):
             raise ValueError("ERR Invalid stream ID specified")
+
+        if entry_id == "*":
+            return -1, -1
 
         try:
             timestamp_str, sequence_str = entry_id.split("-")
@@ -90,12 +93,13 @@ class StreamStore(BaseStore):
         last_entry = self.streams[key][-1]
         last_timestamp, last_sequence = self._parse_entry_id(last_entry["id"])
 
+        # Compare timestamps first
         if new_timestamp < last_timestamp:
             raise ValueError(
                 "ERR The ID specified in XADD is equal or smaller than the target stream top item"
             )
-
         if new_timestamp == last_timestamp and new_sequence <= last_sequence:
+            # Only validate sequence if timestamps are equal
             raise ValueError(
                 "ERR The ID specified in XADD is equal or smaller than the target stream top item"
             )

@@ -99,7 +99,7 @@ class Store:
 
         return self.stores[key_type]
 
-    def get_list_store(self) -> "ListStore":
+    def get_list_store(self) -> ListStore:
         """Get the list store instance.
 
         Returns:
