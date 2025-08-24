@@ -12,7 +12,7 @@ class XAddCommand(Command):
     def name(self) -> str:
         return "XADD"
 
-    async def execute(self, *args: Any, **kwargs: Any) -> str:
+    async def execute(self, *args: Any, **kwargs: Any) -> bytes:
         """Execute the XADD command.
 
         Args:
@@ -52,7 +52,8 @@ class XAddCommand(Command):
 
         try:
             # Call store.xadd with the key, entry_id, and field-value pairs as keyword arguments
-            return store.xadd(key, entry_id, **field_value_dict)
+            # Return as bytes to ensure proper RESP2 bulk string formatting
+            return store.xadd(key, entry_id, **field_value_dict).encode("utf-8")
         except TypeError as e:
             raise TypeError(
                 "WRONGTYPE Operation against a key holding the wrong kind of value"
